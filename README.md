@@ -406,7 +406,7 @@ iptables -t nat -D PREROUTING -i br0 -s 192.168.1.111 -p tcp -j REDIRECT --to-po
 
 ## Делаем правила перенаправления постоянными
 
-* Создадим файл `nano /opt/etc/init.d/10-mihomo-redirect.sh`
+* Создадим файл `nano /opt/etc/ndm/netfilter.d/10-mihomo-redirect.sh`
 
 ```
 #!/bin/sh
