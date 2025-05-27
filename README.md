@@ -204,9 +204,9 @@ rule-providers:
 
 rules:
   # Примеры правил (если используете geoip.dat и geosite.dat):
-  # - DOMAIN-SUFFIX,telegram.org,MIHOMO   # Трафик для telegram.org через Xkeen
-  # - GEOSITE,google,MIHOMO               # Трафик для доменов из списка "google" через Xkeen
-  # - GEOIP,CN,MIHOMO                     # Трафик на IP-адреса Китая через Xkeen
+  # - DOMAIN-SUFFIX,telegram.org,MIHOMO   # Трафик для telegram.org через MIHOMO
+  # - GEOSITE,google,MIHOMO               # Трафик для доменов из списка "google" через MIHOMO
+  # - GEOIP,CN,MIHOMO                     # Трафик на IP-адреса Китая через MIHOMO
   # - DST-PORT,22,DIRECT                  # SSH-трафик напрямую
   - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),MIHOMO
   - RULE-SET,oisd_big,REJECT
