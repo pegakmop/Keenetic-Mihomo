@@ -406,7 +406,7 @@ iptables -t nat -D PREROUTING -i br0 -s 192.168.1.111 -p tcp -j REDIRECT --to-po
 
 ## Делаем правила перенаправления постоянными
 
-* Создадим файл `nano /opt/etc/ndm/netfilter.d/10-mihomo-redirect.sh`
+* Создадим файл `nano /opt/etc/init.d/10-mihomo-redirect.sh`
 
 ```
 #!/bin/sh
@@ -415,7 +415,7 @@ iptables -t nat -D PREROUTING -i br0 -s 192.168.1.111 -p tcp -j REDIRECT --to-po
 # Убедитесь, что LAN интерфейс (например, br0) уже поднят,
 # и Mihomo уже слушает порт.
 # Можно добавить небольшую задержку для надежности, если нужно.
-# sleep 10
+sleep 10
 
 LAN_IF="br0" # Имя вашего LAN интерфейса
 MIHOMO_REDIR_PORT="7892" # Ваш redir-port
