@@ -61,12 +61,15 @@ port: 7890                     # HTTP proxy port (если нужен прямо
 socks-port: 7891               # SOCKS5 proxy port (если нужен прямой доступ к SOCKS5 прокси)
 mixed-port: 7893               # HTTP и SOCKS5 прокси на одном порту
 redir-port: 7892               # Порт для прозрачного проксирования TCP (REDIRECT в iptables)
-# tproxy-port: 7894            # Порт для прозрачного проксирования TCP и UDP (TPROXY, требует доп. настройки)
+listeners:
+  - name: tproxy
+    type: tproxy
+    port: 4000
 allow-lan: true                # Разрешить подключения из локальной сети. Можно указать IP роутера для большей безопасности.
 mode: rule                     # Режим работы: rule (по правилам), global (через один прокси), direct (напрямую)
-log-level: info                # Уровень логирования: debug, info, warning, error, silent
+log-level: silent                # Уровень логирования: debug, info, warning, error, silent
 external-controller: '0.0.0.0:9090' # API для управления Mihomo (например, через веб-интерфейс Yacd)
-                                     # '0.0.0.0' делает его доступным с других устройств в LAN
+                                    # '0.0.0.0' делает его доступным с других устройств в LAN
 external-ui: "/opt/etc/mihomo/dashboard" # Путь к файлам веб-интерфейса (например, Yacd). Их нужно скачать отдельно. Если не нужно, обязательно закомментируйте эту строку
 
 sniffer:
@@ -99,46 +102,36 @@ dns:
     - tls://dns.google:853         # DNS over TLS
   fallback:                      # Резервные DNS, если основные не отвечают
     - https://1.1.1.1/dns-query
-  # Пути к geoip.dat и geosite.dat (Mihomo ищет их в директории, указанной флагом -d при запуске)
-  # geoip-dat: geoip.dat
-  # geosite-dat: geosite.dat
 
 # --- ВАШИ ПРОКСИ-СЕРВЕРЫ ---
-# Замените этот раздел вашими реальными настройками прокси.
-# Это просто пример, адаптируйте его под вашего провайдера.
-proxies:
-- name: MYVPN # Это же название используется дальше в конфиге
-  type: vless
-  server: remnanoda.domain.com
-  port: 443
-  network: tcp
-  udp: true
-  tls: true
-  servername: remnanoda.domain.com
-  reality-opts:
-    public-key: здесьвставленулинкальныйкодсамизнаетекакой
-    short-id: здесьвставьтетожесамизнаетечто
-  client-fingerprint: chrome
-  uuid: здесьвытожезнаетечтовставитьнужно
-  flow: xtls-rprx-vision
+proxy-providers:
+  sub:
+    type: http
+    url: https://ссылкаподписки
+    patch: ./proxy_providers/base64.yaml
+    interval: 3600
+    health-check:
+      enable: true
+      url: http://www.gstatic.com/generate_204
+      interval: 300
+      timeout: 5000
+      lazy: true
+      expected-status: 204
+    override:
+      tfo: true
+      mptcp: true
+      udp: true
 
 # --- ГРУППЫ ПРОКСИ (ПОЛИТИКИ) ---
 proxy-groups:
-  - name: MIHOMO  # Взяли и придумали такое название группы. Оно же будет использоваться ниже в конфиге
-    type: select # Тип группы: select (ручной выбор), url-test (автовыбор по скорости), fallback (переключение при отказе)
-    proxies:
-      - MYVPN # Включите сюда имена прокси из раздела "proxies"
-      # - "ДругойМойСервер"
-      # - "DIRECT" # Можно добавить опцию прямого соединения
-      # - "REJECT" # Можно добавить опцию блокировки
-    # Пример для url-test:
-    # type: url-test
-    # url: 'http://www.gstatic.com/generate_204' # URL для проверки доступности
-    # interval: 300 # Интервал проверки в секундах
+  - name: MIHOMO
+    type: url-test # Тип группы: select (ручной выбор), url-test (автовыбор по скорости), fallback (переключение при отказе)
+    use:
+      - sub
+    url: http://www.gstatic.com/generate_204  # URL для тестирования
+    interval: 300  # Интервал проверки (сек)
 
-# --- ПРАВИЛА МАРШРУТИЗАЦИИ ---
-# Эти правила определяют, какой трафик куда направлять.
-
+# --- ПОДПИСКИ НА ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rule-providers:
   discord_domains:
     type: http
@@ -167,13 +160,6 @@ rule-providers:
     format: mrs
     url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/re-filter/ip-rule.mrs
     path: ./re-filter/ip-rule.mrs
-    interval: 86400
-  youtube:
-    type: http
-    behavior: domain
-    format: mrs
-    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/youtube.mrs
-    path: ./rule-sets/youtube.mrs
     interval: 86400
   oisd_big:
     type: http
@@ -204,16 +190,11 @@ rule-providers:
     path: ./ru-bundle/rule.mrs
     interval: 86400
 
+# --- ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rules:
-  # Примеры правил (если используете geoip.dat и geosite.dat):
-  # - DOMAIN-SUFFIX,telegram.org,MIHOMO   # Трафик для telegram.org через MIHOMO
-  # - GEOSITE,google,MIHOMO               # Трафик для доменов из списка "google" через MIHOMO
-  # - GEOIP,CN,MIHOMO                     # Трафик на IP-адреса Китая через MIHOMO
-  # - DST-PORT,22,DIRECT                  # SSH-трафик напрямую
   - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),MIHOMO
   - RULE-SET,oisd_big,REJECT
   - OR,((RULE-SET,torrent-clients),(RULE-SET,torrent-trackers)),DIRECT
-  - RULE-SET,youtube,MIHOMO
   - OR,((RULE-SET,discord_domains),(RULE-SET,discord_voiceips)),MIHOMO
   - RULE-SET,ru-bundle,MIHOMO
   - RULE-SET,refilter_domains,MIHOMO
