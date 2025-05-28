@@ -41,6 +41,7 @@ mihomo -v
 
 ```
 mkdir -p /opt/etc/mihomo
+mkdir -p /opt/etc/mihomo/dashboard
 mkdir -p /opt/var/log
 mkdir -p /opt/var/run
 ```
