@@ -1,4 +1,4 @@
-# Keenetic-Mihomo
+# Keenetic-Mihomo (beta)
 Инструкция по установке ядра Михомо на роутеры Кенетик
 
 На примере роутера Keenetic Hopper SE с архитектурой aarch64.
