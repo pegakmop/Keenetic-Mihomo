@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Обновлённый init-скрипт для Mihomo с поддержкой автозагрузки модулей ядра
+# Обновлённый init-скрипт для Mihomo с автоматическим поиском модулей ядра
 
 # === Конфигурация ===
 ENABLED=yes
@@ -14,7 +14,7 @@ LOG_FILE="/opt/var/log/mihomo.log"
 POLICY_NAME="mihomo"
 TABLE_MARK="0x111"
 TABLE_ID="111"
-ROUTER_API_URL="localhost:79/rci/show/ip/policy"
+ROUTER_API_URL="http://localhost:79/rci/show/ip/policy"
 TPROXY_PORT="4000"
 
 # === Загрузка Entware функций ===
@@ -29,86 +29,224 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
+find_kernel_module() {
+    local mod=$1
+    local found_path
+    
+    # Стандартные места для поиска
+    local search_paths=(
+        "/lib/modules/$(uname -r)"
+        "/opt/lib/modules"
+        "/lib/modules"
+    )
+    
+    # Ищем модуль в файловой системе
+    found_path=$(find "${search_paths[@]}" -name "$mod" 2>/dev/null | head -n 1)
+    
+    if [ -n "$found_path" ]; then
+        echo "$found_path"
+        return 0
+    else
+        log "Модуль $mod не найден в системе"
+        return 1
+    fi
+}
+
 load_kernel_module() {
     local mod=$1
-    if ! lsmod | grep -q "^${mod%%.ko}"; then
-        [ -f "/opt/lib/modules/${mod}" ] && insmod "/opt/lib/modules/${mod}" 2>/dev/null
-        [ -f "/lib/modules/$(uname -r)/kernel/net/netfilter/${mod}" ] && insmod "/lib/modules/$(uname -r)/kernel/net/netfilter/${mod}" 2>/dev/null
+    local mod_name=${mod%%.ko}
+    local mod_path
+    
+    # Проверяем, не загружен ли уже модуль
+    if lsmod | grep -q "^${mod_name}"; then
+        log "Модуль $mod_name уже загружен"
+        return 0
     fi
-    lsmod | grep -q "^${mod%%.ko}"
+    
+    # Ищем путь к модулю
+    if ! mod_path=$(find_kernel_module "$mod"); then
+        return 1
+    fi
+    
+    # Пробуем загрузить модуль
+    if ! insmod "$mod_path"; then
+        log "Ошибка загрузки модуля $mod_path"
+        return 1
+    fi
+    
+    # Проверяем успешность загрузки
+    if ! lsmod | grep -q "^${mod_name}"; then
+        log "Модуль $mod_name не загрузился"
+        return 1
+    fi
+    
+    log "Модуль $mod_name успешно загружен из $mod_path"
+    return 0
 }
 
 check_dependencies() {
-    for cmd in iptables curl jq ip; do
-        command -v "$cmd" >/dev/null 2>&1 || {
-            echo "Error: command $cmd not found." >&2
+    local required_cmds=("iptables" "curl" "jq" "ip")
+    local required_mods=("xt_TPROXY.ko" "xt_socket.ko")
+    
+    for cmd in "${required_cmds[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            log "Ошибка: команда $cmd не найдена"
             return 1
-        }
+        fi
     done
 
-    for mod in xt_TPROXY.ko xt_socket.ko; do
-        load_kernel_module "$mod" || {
-            echo "Error: kernel module $mod not found or failed to load." >&2
+    for mod in "${required_mods[@]}"; do
+        if ! load_kernel_module "$mod"; then
+            log "Ошибка: модуль ядра $mod не найден или не загружен"
             return 1
-        }
+        fi
     done
     return 0
 }
 
 get_policy_mark() {
-    mark=$(curl -kfsS "$ROUTER_API_URL" | jq -r ".[] | select(.description | ascii_downcase == \"$POLICY_NAME\") | .mark")
-    [ -n "$mark" ] && echo "0x$mark" || return 1
+    local mark
+    if ! mark=$(curl -kfsS "$ROUTER_API_URL" | jq -r ".[] | select(.description | ascii_downcase == \"$POLICY_NAME\") | .mark"); then
+        log "Ошибка при получении метки политики маршрутизации"
+        return 1
+    fi
+    
+    if [ -z "$mark" ]; then
+        log "Политика маршрутизации '$POLICY_NAME' не найдена"
+        return 1
+    fi
+    
+    echo "0x$mark"
+    return 0
 }
 
 check_keenetic_port() {
-    port=$(curl -kfsS "localhost:79/rci/ip/http/ssl" | jq -r '.port')
-    [ "$port" = "443" ] && {
-        echo "Порт 443 занят Keenetic. Измените его на 8443." >&2
+    local port
+    if ! port=$(curl -kfsS "http://localhost:79/rci/ip/http/ssl" | jq -r '.port'); then
+        log "Ошибка при проверке порта Keenetic"
         return 1
-    }
+    fi
+    
+    if [ "$port" = "443" ]; then
+        log "Порт 443 занят Keenetic. Измените его на 8443."
+        return 1
+    fi
     return 0
 }
 
 configure_tproxy() {
-    check_dependencies || return 1
+    local policy_mark
+    
+    if ! check_dependencies; then
+        log "Ошибка проверки зависимостей"
+        return 1
+    fi
 
-    get_policy_mark || return 1
+    if ! policy_mark=$(get_policy_mark); then
+        log "Ошибка получения метки политики маршрутизации"
+        return 1
+    fi
 
-    iptables -t mangle -N MIHOMO_TPROXY 2>/dev/null || true
+    # Создаем цепочку MIHOMO_TPROXY если её нет
+    if ! iptables -t mangle -L MIHOMO_TPROXY >/dev/null 2>&1; then
+        iptables -t mangle -N MIHOMO_TPROXY || {
+            log "Ошибка создания цепочки MIHOMO_TPROXY"
+            return 1
+        }
+    fi
+
+    # Очищаем цепочку
     iptables -t mangle -F MIHOMO_TPROXY
 
+    # Добавляем правила TPROXY
     iptables -t mangle -A MIHOMO_TPROXY -p tcp -j TPROXY --on-port $TPROXY_PORT --tproxy-mark $TABLE_MARK
     iptables -t mangle -A MIHOMO_TPROXY -p udp -j TPROXY --on-port $TPROXY_PORT --tproxy-mark $TABLE_MARK
 
+    # Устанавливаем метку и сохраняем в CONNMARK
     iptables -t mangle -A MIHOMO_TPROXY -j MARK --set-mark $TABLE_MARK
     iptables -t mangle -A MIHOMO_TPROXY -j CONNMARK --save-mark
 
-    iptables -t mangle -C PREROUTING -m mark --mark $TABLE_MARK -j MIHOMO_TPROXY 2>/dev/null || \
-    iptables -t mangle -A PREROUTING -m mark --mark $TABLE_MARK -j MIHOMO_TPROXY
+    # Добавляем правило в PREROUTING если его нет
+    if ! iptables -t mangle -C PREROUTING -m mark --mark $policy_mark -j MIHOMO_TPROXY >/dev/null 2>&1; then
+        iptables -t mangle -A PREROUTING -m mark --mark $policy_mark -j MIHOMO_TPROXY || {
+            log "Ошибка добавления правила PREROUTING"
+            return 1
+        }
+    fi
 
-    ip rule add fwmark $TABLE_MARK lookup $TABLE_ID 2>/dev/null || true
-    ip route add local default dev lo table $TABLE_ID 2>/dev/null || true
+    # Настраиваем таблицу маршрутизации
+    if ! ip rule list | grep -q "fwmark $TABLE_MARK lookup $TABLE_ID"; then
+        ip rule add fwmark $TABLE_MARK lookup $TABLE_ID || {
+            log "Ошибка добавления правила маршрутизации"
+            return 1
+        }
+    fi
 
-    log "Настроены правила TPROXY на порт $TPROXY_PORT с меткой $TABLE_MARK"
+    if ! ip route show table $TABLE_ID | grep -q "local default dev lo"; then
+        ip route add local default dev lo table $TABLE_ID || {
+            log "Ошибка добавления маршрута"
+            return 1
+        }
+    fi
+
+    log "Настроены правила TPROXY на порт $TPROXY_PORT с меткой $TABLE_MARK (политика маршрутизации: $policy_mark)"
+    return 0
 }
 
 start_mihomo() {
     mkdir -p "$(dirname "$PID_FILE")" "$(dirname "$LOG_FILE")" "$MIHOMO_DIR"
-    [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null && return 0
+    [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null && {
+        log "$PROCS уже запущен с PID $(cat "$PID_FILE")"
+        return 0
+    }
 
-    echo "Запуск $PROCS..."
+    log "Запуск $PROCS..."
 
-    check_keenetic_port || return 1
-    configure_tproxy || return 1
+    if ! check_keenetic_port; then
+        return 1
+    fi
 
-    nohup $MIHOMO_BIN $ARGS > "$LOG_FILE" 2>&1 &
+    if ! configure_tproxy; then
+        log "Ошибка настройки TPROXY"
+        return 1
+    fi
+
+    nohup $MIHOMO_BIN $ARGS >> "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
-    echo "$PROCS запущен, PID: $(cat "$PID_FILE")"
+    log "$PROCS запущен, PID: $(cat "$PID_FILE")"
+    return 0
+}
+
+stop_mihomo() {
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" && rm -f "$PID_FILE"
+            log "$PROCS остановлен (PID: $pid)"
+            return 0
+        fi
+        rm -f "$PID_FILE"
+    fi
+    log "$PROCS не запущен"
+    return 0
 }
 
 case "$1" in
-    start) start_mihomo ;;
-    stop) kill -9 $(cat "$PID_FILE" 2>/dev/null) 2>/dev/null && rm -f "$PID_FILE" ;;
-    restart) $0 stop && sleep 1 && $0 start ;;
-    *) echo "Usage: $0 {start|stop|restart}" ;;
+    start)
+        start_mihomo
+        ;;
+    stop)
+        stop_mihomo
+        ;;
+    restart)
+        stop_mihomo
+        sleep 1
+        start_mihomo
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
 esac
+
+exit $?
