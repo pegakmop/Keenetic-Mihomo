@@ -36,7 +36,7 @@ system configuration save
 Обновите список пакетов и установите необходимые утилиты:
 
 ```bash
-opkg update && opkg install curl jq nano
+opkg update && opkg install curl jq nano iptables coreutils-nohup
 ```
 
 ---

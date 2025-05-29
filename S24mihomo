@@ -2,6 +2,9 @@
 
 # Entware init script for Mihomo with policy-based routing
 
+# Окружение
+path="/opt/bin:/opt/sbin:/sbin:/bin:/usr/sbin:/usr/bin"
+
 # === Configuration ===
 ENABLED=yes
 PROCS="mihomo" # Имя процесса
