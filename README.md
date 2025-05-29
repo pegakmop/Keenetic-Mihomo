@@ -70,7 +70,8 @@ mihomo -v
 1. Скачайте и установите скрипт автозапуска:
 
 ```bash
-curl -L -o /opt/etc/init.d/S24mihomo https://raw.githubusercontent.com/OMchik33/Keenetic-Mihomo/refs/heads/main/S24mihomo && chmod +x /opt/etc/init.d/S24mihomo
+curl -L -o /opt/etc/init.d/S24mihomo https://raw.githubusercontent.com/OMchik33/Keenetic-Mihomo/refs/heads/main/S24mihomo
+chmod +x /opt/etc/init.d/S24mihomo
 ```
 
 2. Добавьте alias для быстрого управления:
