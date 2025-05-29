@@ -77,8 +77,8 @@ chmod +x /opt/etc/init.d/S24mihomo
 2. Добавьте alias для быстрого управления:
 
 ```bash
-grep -q "alias mkeen=" ~/.bashrc || echo "alias mkeen='/opt/etc/init.d/S24mihomo'" >> ~/.bashrc
-source ~/.bashrc
+grep -q "alias mkeen=" ~/.profile || echo "alias mkeen='/opt/etc/init.d/S24mihomo'" >> ~/.profile
+source ~/.profile
 ```
 
 ---
