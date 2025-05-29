@@ -148,6 +148,12 @@ url: https://ссылкаподписки
 mkeen start
 ```
 
+Доступные команды управления:
+
+```bash
+mkeen start|stop|restart|status
+```
+
 ---
 
 ## Доступ к веб-интерфейсу
