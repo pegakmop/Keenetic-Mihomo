@@ -49,6 +49,8 @@ opkg update && opkg install curl jq nano
 uname -m
 ```
 
+**Справка: для Keenetic Hopper SE с архитектурой aarch64 нужен архив mihomo-linux-arm64**
+
 3. Распакуйте архив, переименуйте бинарный файл в `mihomo` и поместите его в каталог `/opt/sbin`:
 
 ```bash
