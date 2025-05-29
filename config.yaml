@@ -46,7 +46,7 @@ dns:
 proxy-providers:
   sub:
     type: http
-    url: https://ссылкаподписки
+    url: https://ссылкаподписки # Вот сюда вставьте свою ссылку подписки на прокси (ВПН)
     patch: ./proxy_providers/base64.yaml
     interval: 3600
     health-check:
