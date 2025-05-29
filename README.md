@@ -70,7 +70,7 @@ mihomo -v
 1. Скачайте и установите скрипт автозапуска:
 
 ```bash
-curl -L -o /opt/etc/init.d/S99mihomo https://raw.githubusercontent.com/OMchik33/Keenetic-Mihomo/refs/heads/main/S24mihomo
+curl -L -o /opt/etc/init.d/S99mihomo https://raw.githubusercontent.com/OMchik33/Keenetic-Mihomo/refs/heads/main/S99mihomo
 chmod +x /opt/etc/init.d/S99mihomo
 ```
 
