@@ -92,35 +92,25 @@ configure_tproxy() {
 
     policy_mark=$(get_policy_mark) || return 1
     
-    # Create TProxy chain if not exists
-    if ! iptables -t mangle -nL MIHOMO_TPROXY >/dev/null 2>&1; then
-        iptables -t mangle -N MIHOMO_TPROXY
-    fi
+    # Создаём цепочку (игнорируем ошибку, если уже существует)
+    iptables -t mangle -N MIHOMO_TPROXY 2>/dev/null || true
     
-    # Configure TProxy rules
-    iptables -t mangle -F MIHOMO_TPROXY
+    # Очищаем цепочку
+    iptables -t mangle -F MIHOMO_TPROXY 2>/dev/null
+    
+    # Добавляем правила
     iptables -t mangle -A MIHOMO_TPROXY -j MARK --set-mark ${TABLE_MARK}
     iptables -t mangle -A MIHOMO_TPROXY -j CONNMARK --save-mark
+    iptables -t mangle -A MIHOMO_TPROXY -p tcp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK}
+    iptables -t mangle -A MIHOMO_TPROXY -p udp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK}
     
-    # Add rule to PREROUTING if not exists
-    if ! iptables -t mangle -C PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY >/dev/null 2>&1; then
-        iptables -t mangle -A PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY
-    fi
+    # Добавляем правило в PREROUTING
+    iptables -t mangle -C PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY 2>/dev/null || \
+    iptables -t mangle -A PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY
     
-    # Configure routing for TProxy
-    if ! ip rule show | grep -q "fwmark ${TABLE_MARK} lookup ${TABLE_ID}"; then
-        ip rule add fwmark ${TABLE_MARK} lookup ${TABLE_ID}
-        ip route add local default dev lo table ${TABLE_ID}
-    fi
-    
-    # Add TProxy rules for TCP and UDP
-    if ! iptables -t mangle -C MIHOMO_TPROXY -p tcp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK} >/dev/null 2>&1; then
-        iptables -t mangle -A MIHOMO_TPROXY -p tcp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK}
-    fi
-    
-    if ! iptables -t mangle -C MIHOMO_TPROXY -p udp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK} >/dev/null 2>&1; then
-        iptables -t mangle -A MIHOMO_TPROXY -p udp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK}
-    fi
+    # Настраиваем маршрутизацию
+    ip rule add fwmark ${TABLE_MARK} lookup ${TABLE_ID} 2>/dev/null || true
+    ip route add local default dev lo table ${TABLE_ID} 2>/dev/null || true
     
     log "TProxy firewall and routing rules configured for policy '${POLICY_NAME}' on port ${TPROXY_PORT}"
 }
