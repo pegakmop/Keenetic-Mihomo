@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Обновлённый init-скрипт для Mihomo с автоматическим поиском модулей ядра (совместимый с sh)
+# Обновлённый init-скрипт для Mihomo с улучшенным ожиданием загрузки системы
 
 # === Конфигурация ===
 ENABLED=yes
@@ -17,6 +17,13 @@ TABLE_ID="111"
 ROUTER_API_URL="http://localhost:79/rci/show/ip/policy"
 TPROXY_PORT="4000"
 
+# Настройки ожидания
+MAX_NETWORK_RETRIES=10
+NETWORK_RETRY_DELAY=5
+MAX_API_RETRIES=5
+API_RETRY_DELAY=3
+NETWORK_TEST_URL="http://connectivitycheck.gstatic.com/generate_204"
+
 # === Загрузка Entware функций ===
 if [ -f /opt/etc/init.d/rc.func ]; then
     . /opt/etc/init.d/rc.func
@@ -29,11 +36,51 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
+wait_for_network() {
+    local retries=0
+    log "Ожидание доступности сети..."
+    
+    while [ $retries -lt $MAX_NETWORK_RETRIES ]; do
+        if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1 || \
+           ping -c 1 -W 2 77.88.8.8 >/dev/null 2>&1 || \
+           curl -s -I --connect-timeout 3 "$NETWORK_TEST_URL" >/dev/null 2>&1; then
+            log "Сеть доступна"
+            return 0
+        fi
+        
+        retries=$((retries+1))
+        log "Попытка $retries из $MAX_NETWORK_RETRIES - сеть не доступна, ждем $NETWORK_RETRY_DELAY сек..."
+        sleep $NETWORK_RETRY_DELAY
+    done
+    
+    log "Не удалось установить соединение с интернетом после $MAX_NETWORK_RETRIES попыток"
+    return 1
+}
+
+wait_for_router_api() {
+    local retries=0
+    log "Ожидание доступности API роутера..."
+    
+    while [ $retries -lt $MAX_API_RETRIES ]; do
+        if curl -s -I --connect-timeout 3 "http://localhost:79" >/dev/null 2>&1; then
+            log "API роутера доступно"
+            return 0
+        fi
+        
+        retries=$((retries+1))
+        log "Попытка $retries из $MAX_API_RETRIES - API роутера не отвечает, ждем $API_RETRY_DELAY сек..."
+        sleep $API_RETRY_DELAY
+    done
+    
+    log "API роутера не стало доступным после $MAX_API_RETRIES попыток"
+    return 1
+}
+
 find_kernel_module() {
     local mod=$1
     local found_path
     
-    # Ищем модуль в стандартных местах (по одному за раз для совместимости с sh)
+    # Стандартные места для поиска
     for path in "/lib/modules/$(uname -r)" "/opt/lib/modules" "/lib/modules"; do
         found_path=$(find "$path" -name "$mod" 2>/dev/null | head -n 1)
         if [ -n "$found_path" ]; then
@@ -51,24 +98,20 @@ load_kernel_module() {
     local mod_name=${mod%%.ko}
     local mod_path
     
-    # Проверяем, не загружен ли уже модуль
     if lsmod | grep -q "^${mod_name}"; then
         log "Модуль $mod_name уже загружен"
         return 0
     fi
     
-    # Ищем путь к модулю
     if ! mod_path=$(find_kernel_module "$mod"); then
         return 1
     fi
     
-    # Пробуем загрузить модуль
     if ! insmod "$mod_path"; then
         log "Ошибка загрузки модуля $mod_path"
         return 1
     fi
     
-    # Проверяем успешность загрузки
     if ! lsmod | grep -q "^${mod_name}"; then
         log "Модуль $mod_name не загрузился"
         return 1
@@ -79,7 +122,6 @@ load_kernel_module() {
 }
 
 check_dependencies() {
-    # Проверка команд
     for cmd in iptables curl jq ip; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             log "Ошибка: команда $cmd не найдена"
@@ -87,31 +129,34 @@ check_dependencies() {
         fi
     done
 
-    # Проверка модулей ядра
     for mod in xt_TPROXY.ko xt_socket.ko; do
         if ! load_kernel_module "$mod"; then
             log "Ошибка: модуль ядра $mod не найден или не загружен"
             return 1
         fi
     done
-    
     return 0
 }
 
 get_policy_mark() {
+    local retries=0
     local mark
-    if ! mark=$(curl -kfsS "$ROUTER_API_URL" | jq -r ".[] | select(.description | ascii_downcase == \"$POLICY_NAME\") | .mark"); then
-        log "Ошибка при получении метки политики маршрутизации"
-        return 1
-    fi
     
-    if [ -z "$mark" ]; then
-        log "Политика маршрутизации '$POLICY_NAME' не найдена"
-        return 1
-    fi
+    while [ $retries -lt $MAX_API_RETRIES ]; do
+        if mark=$(curl -kfsS "$ROUTER_API_URL" | jq -r ".[] | select(.description | ascii_downcase == \"$POLICY_NAME\") | .mark"); then
+            if [ -n "$mark" ]; then
+                echo "0x$mark"
+                return 0
+            fi
+        fi
+        
+        retries=$((retries+1))
+        log "Попытка $retries из $MAX_API_RETRIES получить метку политики не удалась, ждем $API_RETRY_DELAY сек..."
+        sleep $API_RETRY_DELAY
+    done
     
-    echo "0x$mark"
-    return 0
+    log "Ошибка при получении метки политики маршрутизации"
+    return 1
 }
 
 check_keenetic_port() {
@@ -195,6 +240,15 @@ start_mihomo() {
     }
 
     log "Запуск $PROCS..."
+    
+    # Ждем доступности сети и API роутера
+    if ! wait_for_network; then
+        log "Продолжаем без интернет-соединения..."
+    fi
+    
+    if ! wait_for_router_api; then
+        log "Продолжаем без API роутера..."
+    fi
 
     if ! check_keenetic_port; then
         return 1
@@ -227,6 +281,8 @@ stop_mihomo() {
 
 case "$1" in
     start)
+        # Добавляем задержку для запуска после загрузки сети
+        sleep 15
         start_mihomo
         ;;
     stop)
@@ -234,7 +290,7 @@ case "$1" in
         ;;
     restart)
         stop_mihomo
-        sleep 1
+        sleep 5
         start_mihomo
         ;;
     *)
