@@ -1,0 +1,205 @@
+#!/bin/sh
+
+# Основные настройки
+name_client="xray"
+name_policy="xkeen"
+table_mark="0x111"
+table_id="111"
+
+# Пути и директории
+directory_entware="/opt"
+directory_binaries="${directory_entware}/sbin"
+directory_configs="${directory_entware}/etc"
+directory_configs_app="${directory_configs}/${name_client}"
+directory_user_settings="${directory_configs_app}/configs"
+
+# Проверка поддержки iptables
+iptables_supported=$(command -v iptables >/dev/null 2>&1 && echo true || echo false)
+ip6tables_supported=$(command -v ip6tables >/dev/null 2>&1 && echo false) # IPv6 отключен для упрощения
+
+# URL для API роутера
+url_server="localhost:79"
+url_policy="rci/show/ip/policy"
+
+# Функция логирования
+log() {
+    echo "$(date "+%Y-%m-%d %H:%M:%S") - $1"
+}
+
+# Получить маркировку политики
+get_policy_mark() {
+    policy_mark=$(
+        curl -kfsS "${url_server}/${url_policy}" \
+        | jq -r '
+            .[]
+            | select(.description
+            | ascii_downcase == "'"${name_policy}"'")
+            | .mark'
+    )
+    
+    if [ -z "${policy_mark}" ]; then
+        log "Политика '$name_policy' не найдена"
+        return 1
+    fi
+    
+    echo "0x${policy_mark}"
+}
+
+# Настройка правил iptables
+configure_firewall() {
+    policy_mark=$(get_policy_mark) || return 1
+    
+    # Создаем цепочку для нашей политики
+    if ! iptables -t mangle -nL XKEEN_CHAIN >/dev/null 2>&1; then
+        iptables -t mangle -N XKEEN_CHAIN
+    fi
+    
+    # Правила для маркировки трафика
+    iptables -t mangle -A XKEEN_CHAIN -j MARK --set-mark ${table_mark}
+    iptables -t mangle -A XKEEN_CHAIN -j CONNMARK --save-mark
+    
+    # Добавляем правило в PREROUTING
+    if ! iptables -t mangle -C PREROUTING -m connmark --mark ${policy_mark} -j XKEEN_CHAIN >/dev/null 2>&1; then
+        iptables -t mangle -A PREROUTING -m connmark --mark ${policy_mark} -j XKEEN_CHAIN
+    fi
+    
+    # Настройка маршрутизации
+    if ! ip rule show | grep -q "fwmark ${table_mark} lookup ${table_id}"; then
+        ip rule add fwmark ${table_mark} lookup ${table_id}
+        ip route add local default dev lo table ${table_id}
+    fi
+    
+    log "Правила firewall настроены для политики '$name_policy'"
+}
+
+# Очистка правил iptables
+clean_firewall() {
+    # Удаляем цепочку
+    iptables -t mangle -F XKEEN_CHAIN 2>/dev/null
+    iptables -t mangle -X XKEEN_CHAIN 2>/dev/null
+    
+    # Удаляем правило из PREROUTING
+    while iptables -t mangle -nL PREROUTING | grep -q "XKEEN_CHAIN"; do
+        iptables -t mangle -D PREROUTING -m connmark --mark $(get_policy_mark 2>/dev/null || echo 0) -j XKEEN_CHAIN 2>/dev/null
+    done
+    
+    # Удаляем правило маршрутизации
+    ip rule del fwmark ${table_mark} lookup ${table_id} 2>/dev/null
+    ip route flush table ${table_id} 2>/dev/null
+    
+    log "Правила firewall очищены"
+}
+
+# Проверка статуса Xray
+xray_status() {
+    pgrep -x "${name_client}" >/dev/null
+}
+
+# Запуск Xray
+start_xray() {
+    if xray_status; then
+        log "Xray уже запущен"
+        return 0
+    fi
+    
+    # Проверяем наличие конфигурации
+    if [ ! -d "${directory_user_settings}" ] || [ -z "$(ls -A ${directory_user_settings}/*.json 2>/dev/null)" ]; then
+        log "Ошибка: Конфигурационные файлы Xray не найдены"
+        return 1
+    fi
+    
+    # Запускаем Xray
+    export XRAY_LOCATION_ASSET="${directory_configs_app}/dat"
+    export XRAY_LOCATION_CONFDIR="${directory_user_settings}"
+    
+    ulimit -n 1000000
+    ${directory_binaries}/${name_client} run -confdir ${directory_user_settings} &
+    
+    sleep 2
+    
+    if xray_status; then
+        configure_firewall
+        log "Xray успешно запущен"
+        return 0
+    else
+        log "Ошибка: Не удалось запустить Xray"
+        return 1
+    fi
+}
+
+# Остановка Xray
+stop_xray() {
+    if ! xray_status; then
+        log "Xray не запущен"
+        return 0
+    fi
+    
+    clean_firewall
+    pkill -x "${name_client}"
+    
+    sleep 2
+    
+    if xray_status; then
+        log "Ошибка: Не удалось остановить Xray"
+        return 1
+    else
+        log "Xray успешно остановлен"
+        return 0
+    fi
+}
+
+# Перезапуск Xray
+restart_xray() {
+    stop_xray
+    start_xray
+}
+
+# Проверка зависимостей
+check_dependencies() {
+    if ! command -v jq >/dev/null 2>&1; then
+        log "Ошибка: jq не установлен. Установите через opkg install jq"
+        return 1
+    fi
+    
+    if ! command -v curl >/dev/null 2>&1; then
+        log "Ошибка: curl не установлен. Установите через opkg install curl"
+        return 1
+    fi
+    
+    if [ ! -x "${directory_binaries}/${name_client}" ]; then
+        log "Ошибка: ${name_client} не установлен или не найден в ${directory_binaries}"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Главное меню
+case "$1" in
+    start)
+        check_dependencies || exit 1
+        start_xray
+        ;;
+    stop)
+        stop_xray
+        ;;
+    restart)
+        check_dependencies || exit 1
+        restart_xray
+        ;;
+    status)
+        if xray_status; then
+            log "Xray запущен"
+            exit 0
+        else
+            log "Xray не запущен"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Использование: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+
+exit 0
