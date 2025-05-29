@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Обновлённый init-скрипт для Mihomo с автоматическим поиском модулей ядра
+# Обновлённый init-скрипт для Mihomo с автоматическим поиском модулей ядра (совместимый с sh)
 
 # === Конфигурация ===
 ENABLED=yes
@@ -33,23 +33,17 @@ find_kernel_module() {
     local mod=$1
     local found_path
     
-    # Стандартные места для поиска
-    local search_paths=(
-        "/lib/modules/$(uname -r)"
-        "/opt/lib/modules"
-        "/lib/modules"
-    )
+    # Ищем модуль в стандартных местах (по одному за раз для совместимости с sh)
+    for path in "/lib/modules/$(uname -r)" "/opt/lib/modules" "/lib/modules"; do
+        found_path=$(find "$path" -name "$mod" 2>/dev/null | head -n 1)
+        if [ -n "$found_path" ]; then
+            echo "$found_path"
+            return 0
+        fi
+    done
     
-    # Ищем модуль в файловой системе
-    found_path=$(find "${search_paths[@]}" -name "$mod" 2>/dev/null | head -n 1)
-    
-    if [ -n "$found_path" ]; then
-        echo "$found_path"
-        return 0
-    else
-        log "Модуль $mod не найден в системе"
-        return 1
-    fi
+    log "Модуль $mod не найден в системе"
+    return 1
 }
 
 load_kernel_module() {
@@ -85,22 +79,22 @@ load_kernel_module() {
 }
 
 check_dependencies() {
-    local required_cmds=("iptables" "curl" "jq" "ip")
-    local required_mods=("xt_TPROXY.ko" "xt_socket.ko")
-    
-    for cmd in "${required_cmds[@]}"; do
+    # Проверка команд
+    for cmd in iptables curl jq ip; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             log "Ошибка: команда $cmd не найдена"
             return 1
         fi
     done
 
-    for mod in "${required_mods[@]}"; do
+    # Проверка модулей ядра
+    for mod in xt_TPROXY.ko xt_socket.ko; do
         if ! load_kernel_module "$mod"; then
             log "Ошибка: модуль ядра $mod не найден или не загружен"
             return 1
         fi
     done
+    
     return 0
 }
 
