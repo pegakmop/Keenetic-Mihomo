@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Обновлённый init-скрипт для Mihomo с улучшенным ожиданием загрузки системы
+# Обновлённый init-скрипт для Mihomo с автоматическим поиском модулей ядра и проверкой сети
 
 # === Конфигурация ===
 ENABLED=yes
@@ -17,11 +17,9 @@ TABLE_ID="111"
 ROUTER_API_URL="http://localhost:79/rci/show/ip/policy"
 TPROXY_PORT="4000"
 
-# Настройки ожидания
-MAX_NETWORK_RETRIES=10
-NETWORK_RETRY_DELAY=5
-MAX_API_RETRIES=5
-API_RETRY_DELAY=3
+# Настройки ожидания сети
+MAX_RETRIES=5
+RETRY_DELAY=10
 NETWORK_TEST_URL="http://connectivitycheck.gstatic.com/generate_204"
 
 # === Загрузка Entware функций ===
@@ -40,39 +38,18 @@ wait_for_network() {
     local retries=0
     log "Ожидание доступности сети..."
     
-    while [ $retries -lt $MAX_NETWORK_RETRIES ]; do
-        if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1 || \
-           ping -c 1 -W 2 77.88.8.8 >/dev/null 2>&1 || \
-           curl -s -I --connect-timeout 3 "$NETWORK_TEST_URL" >/dev/null 2>&1; then
+    while [ $retries -lt $MAX_RETRIES ]; do
+        if curl -s -I --connect-timeout 5 "$NETWORK_TEST_URL" >/dev/null 2>&1; then
             log "Сеть доступна"
             return 0
         fi
         
         retries=$((retries+1))
-        log "Попытка $retries из $MAX_NETWORK_RETRIES - сеть не доступна, ждем $NETWORK_RETRY_DELAY сек..."
-        sleep $NETWORK_RETRY_DELAY
+        log "Попытка $retries из $MAX_RETRIES - сеть не доступна, ждем $RETRY_DELAY сек..."
+        sleep $RETRY_DELAY
     done
     
-    log "Не удалось установить соединение с интернетом после $MAX_NETWORK_RETRIES попыток"
-    return 1
-}
-
-wait_for_router_api() {
-    local retries=0
-    log "Ожидание доступности API роутера..."
-    
-    while [ $retries -lt $MAX_API_RETRIES ]; do
-        if curl -s -I --connect-timeout 3 "http://localhost:79" >/dev/null 2>&1; then
-            log "API роутера доступно"
-            return 0
-        fi
-        
-        retries=$((retries+1))
-        log "Попытка $retries из $MAX_API_RETRIES - API роутера не отвечает, ждем $API_RETRY_DELAY сек..."
-        sleep $API_RETRY_DELAY
-    done
-    
-    log "API роутера не стало доступным после $MAX_API_RETRIES попыток"
+    log "Не удалось установить соединение с интернетом после $MAX_RETRIES попыток"
     return 1
 }
 
@@ -80,7 +57,6 @@ find_kernel_module() {
     local mod=$1
     local found_path
     
-    # Стандартные места для поиска
     for path in "/lib/modules/$(uname -r)" "/opt/lib/modules" "/lib/modules"; do
         found_path=$(find "$path" -name "$mod" 2>/dev/null | head -n 1)
         if [ -n "$found_path" ]; then
@@ -135,14 +111,16 @@ check_dependencies() {
             return 1
         fi
     done
+    
     return 0
 }
 
 get_policy_mark() {
-    local retries=0
     local mark
+    local retries=3
+    local attempt=0
     
-    while [ $retries -lt $MAX_API_RETRIES ]; do
+    while [ $attempt -lt $retries ]; do
         if mark=$(curl -kfsS "$ROUTER_API_URL" | jq -r ".[] | select(.description | ascii_downcase == \"$POLICY_NAME\") | .mark"); then
             if [ -n "$mark" ]; then
                 echo "0x$mark"
@@ -150,9 +128,9 @@ get_policy_mark() {
             fi
         fi
         
-        retries=$((retries+1))
-        log "Попытка $retries из $MAX_API_RETRIES получить метку политики не удалась, ждем $API_RETRY_DELAY сек..."
-        sleep $API_RETRY_DELAY
+        attempt=$((attempt+1))
+        log "Попытка $attempt из $retries получить метку политики не удалась, ждем 5 сек..."
+        sleep 5
     done
     
     log "Ошибка при получении метки политики маршрутизации"
@@ -186,7 +164,6 @@ configure_tproxy() {
         return 1
     fi
 
-    # Создаем цепочку MIHOMO_TPROXY если её нет
     if ! iptables -t mangle -L MIHOMO_TPROXY >/dev/null 2>&1; then
         iptables -t mangle -N MIHOMO_TPROXY || {
             log "Ошибка создания цепочки MIHOMO_TPROXY"
@@ -194,18 +171,14 @@ configure_tproxy() {
         }
     fi
 
-    # Очищаем цепочку
     iptables -t mangle -F MIHOMO_TPROXY
 
-    # Добавляем правила TPROXY
     iptables -t mangle -A MIHOMO_TPROXY -p tcp -j TPROXY --on-port $TPROXY_PORT --tproxy-mark $TABLE_MARK
     iptables -t mangle -A MIHOMO_TPROXY -p udp -j TPROXY --on-port $TPROXY_PORT --tproxy-mark $TABLE_MARK
 
-    # Устанавливаем метку и сохраняем в CONNMARK
     iptables -t mangle -A MIHOMO_TPROXY -j MARK --set-mark $TABLE_MARK
     iptables -t mangle -A MIHOMO_TPROXY -j CONNMARK --save-mark
 
-    # Добавляем правило в PREROUTING если его нет
     if ! iptables -t mangle -C PREROUTING -m mark --mark $policy_mark -j MIHOMO_TPROXY >/dev/null 2>&1; then
         iptables -t mangle -A PREROUTING -m mark --mark $policy_mark -j MIHOMO_TPROXY || {
             log "Ошибка добавления правила PREROUTING"
@@ -213,7 +186,6 @@ configure_tproxy() {
         }
     fi
 
-    # Настраиваем таблицу маршрутизации
     if ! ip rule list | grep -q "fwmark $TABLE_MARK lookup $TABLE_ID"; then
         ip rule add fwmark $TABLE_MARK lookup $TABLE_ID || {
             log "Ошибка добавления правила маршрутизации"
@@ -241,13 +213,9 @@ start_mihomo() {
 
     log "Запуск $PROCS..."
     
-    # Ждем доступности сети и API роутера
+    # Ждем доступности сети
     if ! wait_for_network; then
         log "Продолжаем без интернет-соединения..."
-    fi
-    
-    if ! wait_for_router_api; then
-        log "Продолжаем без API роутера..."
     fi
 
     if ! check_keenetic_port; then
