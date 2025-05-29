@@ -1,203 +1,270 @@
 #!/bin/sh
 
-# Основные настройки
-name_client="xray"
-name_policy="xkeen"
-table_mark="0x111"
-table_id="111"
+# Entware init script for Mihomo with policy-based routing
 
-# Пути и директории
-directory_entware="/opt"
-directory_binaries="${directory_entware}/sbin"
-directory_configs="${directory_entware}/etc"
-directory_configs_app="${directory_configs}/${name_client}"
-directory_user_settings="${directory_configs_app}/configs"
+# === Configuration ===
+ENABLED=yes
+PROCS="mihomo" # Имя процесса
+MIHOMO_BIN="/opt/sbin/mihomo"
+MIHOMO_DIR="/opt/etc/mihomo" # Рабочая директория Mihomo (где config.yaml, geoip.dat и т.д.)
+# Mihomo ищет config.yaml в директории, указанной -d
+ARGS="-d ${MIHOMO_DIR}"
+PID_FILE="/opt/var/run/mihomo.pid"
+LOG_FILE="/opt/var/log/mihomo.log" # Лог-файл
 
-# Проверка поддержки iptables
-iptables_supported=$(command -v iptables >/dev/null 2>&1 && echo true || echo false)
-ip6tables_supported=$(command -v ip6tables >/dev/null 2>&1 && echo false) # IPv6 отключен для упрощения
+# Policy routing settings
+POLICY_NAME="mihomo" # Название групповой политики в роутере
+TABLE_MARK="0x111"   # Маркер для таблицы маршрутизации
+TABLE_ID="111"       # ID таблицы маршрутизации
+ROUTER_API_URL="localhost:79/rci/show/ip/policy" # URL API роутера
+TPROXY_PORT="4000"   # Порт TProxy из config.yaml
+# === End Configuration ===
 
-# URL для API роутера
-url_server="localhost:79"
-url_policy="rci/show/ip/policy"
+# Source Entware init functions
+if [ -f /opt/etc/init.d/rc.func ]; then
+    . /opt/etc/init.d/rc.func
+else
+    echo "Error: /opt/etc/init.d/rc.func not found." >&2
+    exit 1
+fi
 
-# Функция логирования
-log() {
-    echo "$(date "+%Y-%m-%d %H:%M:%S") - $1"
+# Check for required commands and modules
+check_dependencies() {
+    # Required commands
+    for cmd in iptables curl jq ip; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo "Error: Required command '$cmd' not found." >&2
+            return 1
+        fi
+    done
+
+    # Check for TProxy kernel module
+    if ! lsmod | grep -q "xt_TPROXY" && \
+       [ ! -f /lib/modules/$(uname -r)/xt_TPROXY.ko ] && \
+       [ ! -f /opt/lib/modules/xt_TPROXY.ko ]; then
+        echo "Error: xt_TPROXY kernel module not found. Required for TProxy support." >&2
+        return 1
+    fi
+
+    return 0
 }
 
-# Получить маркировку политики
+# Logging function
+log() {
+    echo "$(date "+%Y-%m-%d %H:%M:%S") - $1" >> "${LOG_FILE}"
+}
+
+# Get policy mark from router API
 get_policy_mark() {
-    policy_mark=$(
-        curl -kfsS "${url_server}/${url_policy}" \
-        | jq -r '
-            .[]
-            | select(.description
-            | ascii_downcase == "'"${name_policy}"'")
-            | .mark'
-    )
+    policy_mark=$(curl -kfsS "${ROUTER_API_URL}" | \
+                 jq -r ".[] | select(.description | ascii_downcase == \"${POLICY_NAME}\") | .mark")
     
     if [ -z "${policy_mark}" ]; then
-        log "Политика '$name_policy' не найдена"
+        log "Policy '${POLICY_NAME}' not found"
         return 1
     fi
     
     echo "0x${policy_mark}"
 }
 
-# Настройка правил iptables
-configure_firewall() {
-    policy_mark=$(get_policy_mark) || return 1
+# Check if port 443 is used by Keenetic services
+check_keenetic_port() {
+    result=$(curl -kfsS "localhost:79/rci/ip/http/ssl")
+    keenetic_port=$(echo "${result}" | jq -r '.port')
     
-    # Создаем цепочку для нашей политики
-    if ! iptables -t mangle -nL XKEEN_CHAIN >/dev/null 2>&1; then
-        iptables -t mangle -N XKEEN_CHAIN
-    fi
-    
-    # Правила для маркировки трафика
-    iptables -t mangle -A XKEEN_CHAIN -j MARK --set-mark ${table_mark}
-    iptables -t mangle -A XKEEN_CHAIN -j CONNMARK --save-mark
-    
-    # Добавляем правило в PREROUTING
-    if ! iptables -t mangle -C PREROUTING -m connmark --mark ${policy_mark} -j XKEEN_CHAIN >/dev/null 2>&1; then
-        iptables -t mangle -A PREROUTING -m connmark --mark ${policy_mark} -j XKEEN_CHAIN
-    fi
-    
-    # Настройка маршрутизации
-    if ! ip rule show | grep -q "fwmark ${table_mark} lookup ${table_id}"; then
-        ip rule add fwmark ${table_mark} lookup ${table_id}
-        ip route add local default dev lo table ${table_id}
-    fi
-    
-    log "Правила firewall настроены для политики '$name_policy'"
-}
-
-# Очистка правил iptables
-clean_firewall() {
-    # Удаляем цепочку
-    iptables -t mangle -F XKEEN_CHAIN 2>/dev/null
-    iptables -t mangle -X XKEEN_CHAIN 2>/dev/null
-    
-    # Удаляем правило из PREROUTING
-    while iptables -t mangle -nL PREROUTING | grep -q "XKEEN_CHAIN"; do
-        iptables -t mangle -D PREROUTING -m connmark --mark $(get_policy_mark 2>/dev/null || echo 0) -j XKEEN_CHAIN 2>/dev/null
-    done
-    
-    # Удаляем правило маршрутизации
-    ip rule del fwmark ${table_mark} lookup ${table_id} 2>/dev/null
-    ip route flush table ${table_id} 2>/dev/null
-    
-    log "Правила firewall очищены"
-}
-
-# Проверка статуса Xray
-xray_status() {
-    pgrep -x "${name_client}" >/dev/null
-}
-
-# Запуск Xray
-start_xray() {
-    if xray_status; then
-        log "Xray уже запущен"
-        return 0
-    fi
-    
-    # Проверяем наличие конфигурации
-    if [ ! -d "${directory_user_settings}" ] || [ -z "$(ls -A ${directory_user_settings}/*.json 2>/dev/null)" ]; then
-        log "Ошибка: Конфигурационные файлы Xray не найдены"
+    if [ "${keenetic_port}" -eq 443 ]; then
+        log "Порт 443 используется сервисами Keenetic. Tproxy требуется, чтобы этот порт был доступен."
+        echo "Ошибка: Порт 443 используется сервисами Keenetic. Tproxy требуется, чтобы этот порт был доступен." >&2
+        echo "Пожалуйста, измените в настройках Keenetic порт: ip http ssl на 8443" >&2
         return 1
     fi
-    
-    # Запускаем Xray
-    export XRAY_LOCATION_ASSET="${directory_configs_app}/dat"
-    export XRAY_LOCATION_CONFDIR="${directory_user_settings}"
-    
-    ulimit -n 1000000
-    ${directory_binaries}/${name_client} run -confdir ${directory_user_settings} &
-    
-    sleep 2
-    
-    if xray_status; then
-        configure_firewall
-        log "Xray успешно запущен"
-        return 0
-    else
-        log "Ошибка: Не удалось запустить Xray"
-        return 1
-    fi
-}
-
-# Остановка Xray
-stop_xray() {
-    if ! xray_status; then
-        log "Xray не запущен"
-        return 0
-    fi
-    
-    clean_firewall
-    pkill -x "${name_client}"
-    
-    sleep 2
-    
-    if xray_status; then
-        log "Ошибка: Не удалось остановить Xray"
-        return 1
-    else
-        log "Xray успешно остановлен"
-        return 0
-    fi
-}
-
-# Перезапуск Xray
-restart_xray() {
-    stop_xray
-    start_xray
-}
-
-# Проверка зависимостей
-check_dependencies() {
-    if ! command -v jq >/dev/null 2>&1; then
-        log "Ошибка: jq не установлен. Установите через opkg install jq"
-        return 1
-    fi
-    
-    if ! command -v curl >/dev/null 2>&1; then
-        log "Ошибка: curl не установлен. Установите через opkg install curl"
-        return 1
-    fi
-    
-    if [ ! -x "${directory_binaries}/${name_client}" ]; then
-        log "Ошибка: ${name_client} не установлен или не найден в ${directory_binaries}"
-        return 1
-    fi
-    
     return 0
 }
 
-# Главное меню
+# Configure firewall and routing rules for TProxy
+configure_tproxy() {
+    if ! check_dependencies; then
+        return 1
+    fi
+
+    policy_mark=$(get_policy_mark) || return 1
+    
+    # Create TProxy chain if not exists
+    if ! iptables -t mangle -nL MIHOMO_TPROXY >/dev/null 2>&1; then
+        iptables -t mangle -N MIHOMO_TPROXY
+    fi
+    
+    # Configure TProxy rules
+    iptables -t mangle -F MIHOMO_TPROXY
+    iptables -t mangle -A MIHOMO_TPROXY -j MARK --set-mark ${TABLE_MARK}
+    iptables -t mangle -A MIHOMO_TPROXY -j CONNMARK --save-mark
+    
+    # Add rule to PREROUTING if not exists
+    if ! iptables -t mangle -C PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY >/dev/null 2>&1; then
+        iptables -t mangle -A PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY
+    fi
+    
+    # Configure routing for TProxy
+    if ! ip rule show | grep -q "fwmark ${TABLE_MARK} lookup ${TABLE_ID}"; then
+        ip rule add fwmark ${TABLE_MARK} lookup ${TABLE_ID}
+        ip route add local default dev lo table ${TABLE_ID}
+    fi
+    
+    # Add TProxy rules for TCP and UDP
+    if ! iptables -t mangle -C MIHOMO_TPROXY -p tcp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK} >/dev/null 2>&1; then
+        iptables -t mangle -A MIHOMO_TPROXY -p tcp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK}
+    fi
+    
+    if ! iptables -t mangle -C MIHOMO_TPROXY -p udp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK} >/dev/null 2>&1; then
+        iptables -t mangle -A MIHOMO_TPROXY -p udp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK}
+    fi
+    
+    log "TProxy firewall and routing rules configured for policy '${POLICY_NAME}' on port ${TPROXY_PORT}"
+}
+
+# Clean up TProxy firewall and routing rules
+clean_tproxy() {
+    # Remove chain
+    iptables -t mangle -F MIHOMO_TPROXY 2>/dev/null
+    iptables -t mangle -X MIHOMO_TPROXY 2>/dev/null
+    
+    # Remove PREROUTING rule
+    while iptables -t mangle -nL PREROUTING | grep -q "MIHOMO_TPROXY"; do
+        policy_mark=$(get_policy_mark 2>/dev/null || echo 0)
+        iptables -t mangle -D PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY 2>/dev/null
+    done
+    
+    # Remove routing rule
+    ip rule del fwmark ${TABLE_MARK} lookup ${TABLE_ID} 2>/dev/null
+    ip route flush table ${TABLE_ID} 2>/dev/null
+    
+    log "TProxy firewall and routing rules cleaned up"
+}
+
+# Create necessary directories if they don't exist
+ensure_dirs() {
+    mkdir -p "$(dirname "${PID_FILE}")"
+    mkdir -p "$(dirname "${LOG_FILE}")"
+    mkdir -p "${MIHOMO_DIR}"
+}
+
+start_mihomo() {
+    ensure_dirs
+    if [ -f "${PID_FILE}" ] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
+        echo "${PROCS} is already running."
+        return 0
+    fi
+
+    echo "Starting ${PROCS}..."
+    
+    # Check for TProxy requirements
+    if ! check_keenetic_port; then
+        return 1
+    fi
+    
+    # Configure TProxy before starting
+    configure_tproxy
+    
+    # Start Mihomo in background, logs to file
+    nohup ${MIHOMO_BIN} ${ARGS} > ${LOG_FILE} 2>&1 &
+    # Save process PID
+    echo $! > ${PID_FILE}
+
+    if [ $? -eq 0 ]; then
+        echo "${PROCS} started with PID $(cat ${PID_FILE})."
+        log "${PROCS} started successfully"
+    else
+        echo "Error starting ${PROCS}."
+        log "Error starting ${PROCS}"
+        rm -f "${PID_FILE}"
+        clean_tproxy
+        return 1
+    fi
+}
+
+stop_mihomo() {
+    if [ ! -f "${PID_FILE}" ]; then
+        echo "${PROCS} is not running (PID file not found)."
+        # Try to find and kill process by name
+        pkill -f "${MIHOMO_BIN} ${ARGS}" && echo "Found and killed ${PROCS} by name."
+        clean_tproxy
+        return 0
+    fi
+
+    PID=$(cat "${PID_FILE}")
+    echo "Stopping ${PROCS} (PID ${PID})..."
+
+    if ! kill -0 "${PID}" >/dev/null 2>&1; then
+        echo "Process ${PID} not found. Removing stale PID file."
+        rm -f "${PID_FILE}"
+        clean_tproxy
+        return 0
+    fi
+
+    # Send SIGTERM for graceful shutdown
+    kill "${PID}"
+    # Wait a bit
+    COUNT=0
+    while kill -0 "${PID}" >/dev/null 2>&1; do
+        sleep 1
+        COUNT=$((COUNT + 1))
+        if [ ${COUNT} -ge 10 ]; then # Wait up to 10 seconds
+            echo "${PROCS} (PID ${PID}) did not stop gracefully, sending SIGKILL."
+            kill -9 "${PID}"
+            break
+        fi
+    done
+
+    if ! kill -0 "${PID}" >/dev/null 2>&1; then
+        echo "${PROCS} stopped."
+        log "${PROCS} stopped successfully"
+    else
+        echo "Failed to stop ${PROCS} (PID ${PID})."
+        log "Failed to stop ${PROCS} (PID ${PID})"
+    fi
+    rm -f "${PID_FILE}"
+    clean_tproxy
+}
+
 case "$1" in
     start)
-        check_dependencies || exit 1
-        start_xray
+        [ "${ENABLED}" = "yes" ] || exit 1
+        start_mihomo
         ;;
     stop)
-        stop_xray
+        stop_mihomo
         ;;
     restart)
-        check_dependencies || exit 1
-        restart_xray
+        stop_mihomo
+        sleep 2
+        start_mihomo
         ;;
     status)
-        if xray_status; then
-            log "Xray запущен"
-            exit 0
+        if [ -f "${PID_FILE}" ]; then
+            PID=$(cat "${PID_FILE}")
+            if kill -0 "${PID}" >/dev/null 2>&1; then
+                echo "${PROCS} is running (PID ${PID})."
+                # Check TProxy rules
+                if iptables -t mangle -nL MIHOMO_TPROXY >/dev/null 2>&1 && \
+                   ip rule show | grep -q "fwmark ${TABLE_MARK} lookup ${TABLE_ID}"; then
+                    echo "TProxy rules are properly configured."
+                else
+                    echo "Warning: TProxy rules are not configured!"
+                fi
+            else
+                echo "${PROCS} is not running (stale PID file: ${PID_FILE})."
+            fi
         else
-            log "Xray не запущен"
-            exit 1
+            # Additional check by process name
+            if pgrep -f "${MIHOMO_BIN} ${ARGS}" >/dev/null; then
+                echo "${PROCS} is running (found by process name), but PID file is missing."
+            else
+                echo "${PROCS} is not running."
+            fi
         fi
         ;;
     *)
-        echo "Использование: $0 {start|stop|restart|status}"
+        echo "Usage: $0 {start|stop|restart|status}"
         exit 1
         ;;
 esac
