@@ -91,28 +91,28 @@ configure_tproxy() {
     fi
 
     policy_mark=$(get_policy_mark) || return 1
-    
+
     # Создаём цепочку (игнорируем ошибку, если уже существует)
     iptables -t mangle -N MIHOMO_TPROXY 2>/dev/null || true
-    
-    # Очищаем цепочку
     iptables -t mangle -F MIHOMO_TPROXY 2>/dev/null
-    
+
     # Добавляем правила
     iptables -t mangle -A MIHOMO_TPROXY -j MARK --set-mark ${TABLE_MARK}
     iptables -t mangle -A MIHOMO_TPROXY -j CONNMARK --save-mark
+
+    # Добавляем TProxy для TCP/UDP
     iptables -t mangle -A MIHOMO_TPROXY -p tcp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK}
     iptables -t mangle -A MIHOMO_TPROXY -p udp -j TPROXY --on-port ${TPROXY_PORT} --tproxy-mark ${TABLE_MARK}
-    
+
     # Добавляем правило в PREROUTING
     iptables -t mangle -C PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY 2>/dev/null || \
     iptables -t mangle -A PREROUTING -m connmark --mark ${policy_mark} -j MIHOMO_TPROXY
-    
+
     # Настраиваем маршрутизацию
     ip rule add fwmark ${TABLE_MARK} lookup ${TABLE_ID} 2>/dev/null || true
     ip route add local default dev lo table ${TABLE_ID} 2>/dev/null || true
-    
-    log "TProxy firewall and routing rules configured for policy '${POLICY_NAME}' on port ${TPROXY_PORT}"
+
+    log "Правила TProxy настроены для политики '${POLICY_NAME}' на порту ${TPROXY_PORT}"
 }
 
 # Clean up TProxy firewall and routing rules
