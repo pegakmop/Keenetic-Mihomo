@@ -9,7 +9,7 @@ mode: rule                     # Режим работы: rule (по прави�
 log-level: silent                # Уровень логирования: debug, info, warning, error, silent
 external-controller: '0.0.0.0:9090' 
 external-ui: ui
-external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip"
+external-ui-url: "https://github.com/MetaCubeX/metacubexd/releases/latest/download/compressed-dist.tgz"
 
 sniffer:
   enable: true
