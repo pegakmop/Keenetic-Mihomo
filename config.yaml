@@ -1,15 +1,15 @@
 # Общие настройки
-socks-port: 7890               # SOCKS5 proxy port (если нужен прямой доступ к SOCKS5 прокси)
+socks-port: 7777               # SOCKS5 proxy port (если нужен прямой доступ к SOCKS5 прокси)
 listeners:
   - name: tproxy
     type: tproxy
     port: 4000
-allow-lan: true                # Разрешить подключения из локальной сети. Можно указать IP роутера для большей безопасности.
+allow-lan: true                # Разрешить подключения из локальной сети.
 mode: rule                     # Режим работы: rule (по правилам), global (через один прокси), direct (напрямую)
 log-level: silent                # Уровень логирования: debug, info, warning, error, silent
-external-controller: '0.0.0.0:9090' # API для управления Mihomo (например, через веб-интерфейс Yacd)
-                                    # '0.0.0.0' делает его доступным с других устройств в LAN
-external-ui: "/opt/etc/mihomo/dashboard" # Путь к файлам веб-интерфейса (например, Yacd). Их нужно скачать отдельно. Если не нужно, обязательно закомментируйте эту строку
+external-controller: '0.0.0.0:9090' 
+external-ui: ui
+external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip"
 
 sniffer:
   enable: true
