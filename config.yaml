@@ -138,4 +138,4 @@ rules:
   - RULE-SET,ru-bundle,MIHOMO
   - RULE-SET,refilter_domains,MIHOMO
   - RULE-SET,refilter_ipsum,MIHOMO
-  - MATCH,DIRECT # это самая нижная строка, ниже не писать правила
+  - MATCH,DIRECT # это самая нижная строка правил
