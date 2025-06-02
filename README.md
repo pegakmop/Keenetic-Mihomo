@@ -107,16 +107,6 @@ mkdir -p /opt/var/run
 
 ---
 
-## Установка веб-интерфейса
-
-1. Скачайте и распакуйте содержимое архива `compressed-dist.tgz` из [MetaCubeX/metacubexd](https://github.com/MetaCubeX/metacubexd/releases) в каталог:
-
-```text
-/opt/etc/mihomo/dashboard
-```
-
----
-
 ## Настройка конфигурации
 
 1. Скачайте базовый конфигурационный файл:
