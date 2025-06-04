@@ -64,11 +64,11 @@ proxy-providers:
 # --- ГРУППЫ ПРОКСИ (ПОЛИТИКИ) ---
 proxy-groups:
   - name: MIHOMO
-    type: url-test # Тип группы: select (ручной выбор), url-test (автовыбор по скорости), fallback (переключение при отказе)
+    type: select # Тип группы: select (ручной выбор), url-test (автовыбор по скорости), fallback (переключение при отказе)
     use:
       - sub
-    url: http://www.gstatic.com/generate_204  # URL для тестирования
-    interval: 300  # Интервал проверки (сек)
+#    url: http://www.gstatic.com/generate_204  # URL для тестирования
+#    interval: 300  # Интервал проверки (сек)
 
 # --- ПОДПИСКИ НА ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rule-providers:
