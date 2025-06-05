@@ -14,31 +14,6 @@
 
 ---
 
-## 📥 Установка
-
-```sh
-opkg update >/dev/null 2>&1
-opkg upgrade >/dev/null 2>&1
-opkg install curl tar
-curl -L https://raw.githubusercontent.com/jameszeroX/xkeen/main/beta/xkeen.tar -o xkeen.tar
-tar -xvf xkeen.tar -C /opt/sbin --overwrite > /dev/null && rm xkeen.tar
-xkeen -i
-```
-
----
-
-## 🔄 Обновление
-
-```sh
-opkg update >/dev/null 2>&1
-opkg upgrade >/dev/null 2>&1
-curl -L https://raw.githubusercontent.com/jameszeroX/xkeen/main/beta/xkeen.tar -o xkeen.tar
-tar -xvf xkeen.tar -C /opt/sbin --overwrite > /dev/null && rm xkeen.tar
-xkeen -k
-```
-
----
-
 ## 🧩 Пример конфигурации
 
 В моём репозитории доступен пример конфигурации для Mihomo с маршрутизацией **Ru-Bundle от Легиза**:
