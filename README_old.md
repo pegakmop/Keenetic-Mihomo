@@ -1,13 +1,7 @@
 <blockquote>
 <strong>⚠️ Внимание:</strong> скрипт не отлажен и работает нестабильно.<br>
-Желающие использовать ядро Mihomo более стабильно могут воспользоваться вот этой инструкцией:<br>
-<a href="https://www.notion.so/XKeen-mihomo-b60985fca7054a4f9dc9936e7611be4f">https://www.notion.so/XKeen-mihomo-b60985fca7054a4f9dc9936e7611be4f</a>
+Развитие данного скрипта приостановлено в пользу полностью рабочей версии в форке XKeen от jameszeroX
 </blockquote>
-
-<blockquote>
-<strong> Скоро поддержка ядра Mihomo будет добавлена в форк xkeen от автора jameszeroX </strong>
-</blockquote>
-
 
 # Установка и настройка Mihomo на Keenetic
 
