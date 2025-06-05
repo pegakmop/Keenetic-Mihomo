@@ -22,6 +22,26 @@
 
 ---
 
+## 🖥 Подключение пользовательского интерфейса
+
+Вы можете использовать различные пользовательские интерфейсы для управления Mihomo. Укажите один из URL в конфигурационном файле (`config.yaml`) в поле `external-ui-url`.
+
+### Примеры:
+
+- Интерфейс от MetaCubeX:
+
+  ```yaml
+  external-ui-url: "https://github.com/MetaCubeX/metacubexd/releases/latest/download/compressed-dist.tgz"
+  ```
+
+- Интерфейс Zashboard:
+
+  ```yaml
+  external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip"
+  ```
+
+---
+
 ## 🛠 Полезные инструменты
 
 - [Документация по настройке Mihomo](https://wiki.metacubex.one/ru/config/)
