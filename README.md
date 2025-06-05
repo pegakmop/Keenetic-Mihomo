@@ -19,6 +19,7 @@
 В моём репозитории доступен пример конфигурации для Mihomo с маршрутизацией **Ru-Bundle от Легиза**:
 
 - [config.yaml (raw)](https://raw.githubusercontent.com/OMchik33/Keenetic-Mihomo/refs/heads/main/config.yaml)
+- [Адрес админ панели:](http://192.168.1.1:9090/ui)
 
 ---
 
