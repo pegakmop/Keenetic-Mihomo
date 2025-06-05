@@ -28,7 +28,7 @@ sniffer:
 
 # Настройки DNS (Mihomo может выступать как DNS-сервер)
 dns:
-  enable: false
+  enable: false                # Сейчас выключен. Работают DNS, настроенные в самом роутере
   listen: 0.0.0.0:5353         # Порт для DNS-запросов (не используйте 53, если он занят DNS-сервером Keenetic)
   ipv6: false                  # В нашем конфиге мы не используем IPv6
   default-nameserver:
