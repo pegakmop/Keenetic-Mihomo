@@ -19,7 +19,6 @@
 В моём репозитории доступен пример конфигурации для Mihomo с маршрутизацией **Ru-Bundle от Легиза**:
 
 - [config.yaml (raw)](https://raw.githubusercontent.com/OMchik33/Keenetic-Mihomo/refs/heads/main/config.yaml)
-- [Наборы правил от Legiz](https://github.com/legiz-ru/mihomo-rule-sets)
 
 ---
 
@@ -27,3 +26,4 @@
 
 - [Документация по настройке Mihomo](https://wiki.metacubex.one/ru/config/)
 - [Онлайн-конвертер подписок в YAML с маршрутизацией](https://dikozimpact.github.io/clash-convertor/)
+- [Наборы правил маршрутизации от Legiz](https://github.com/legiz-ru/mihomo-rule-sets)
