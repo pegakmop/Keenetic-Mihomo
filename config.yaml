@@ -120,6 +120,7 @@ rules:
   - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),MIHOMO
   - RULE-SET,oisd_big,REJECT # OISD Big - блокирует рекламу
   # - DOMAIN-SUFFIX,google.com,MIHOMO # пример правила для домена google.com и всех поддоменов
+  # - IP-CIDR,176.222.191.0/24,MIHOMO,no-resolve # пример правила для IP подсети
   - OR,((RULE-SET,torrent-clients),(RULE-SET,torrent-trackers)),DIRECT
   - OR,((RULE-SET,discord_domains),(RULE-SET,discord_voiceips)),MIHOMO
   - RULE-SET,ru-bundle,MIHOMO
