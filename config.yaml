@@ -73,7 +73,7 @@ proxy-groups:
       - sub
 #    url: http://www.gstatic.com/generate_204  # URL для тестирования
 #    interval: 300  # Интервал проверки (сек)
-# выше блок можно расскоментировать, если хотите использовать автоматический выбор прокси по скорости
+# выше две строки можно расскоментировать, если хотите использовать автоматический выбор прокси по скорости
 
 # --- ПОДПИСКИ НА ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rule-providers:
@@ -137,7 +137,8 @@ rule-providers:
 # --- ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rules:
   - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),MIHOMO
-  - RULE-SET,oisd_big,REJECT
+  - RULE-SET,oisd_big,REJECT # OISD Big - блокирует рекламу
+  # - DOMAIN-SUFFIX,google.com,MIHOMO # пример правила для домена google.com и всех поддоменов
   - OR,((RULE-SET,torrent-clients),(RULE-SET,torrent-trackers)),DIRECT
   - OR,((RULE-SET,discord_domains),(RULE-SET,discord_voiceips)),MIHOMO
   - RULE-SET,ru-bundle,MIHOMO
