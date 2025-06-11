@@ -145,3 +145,5 @@ rules:
   - RULE-SET,refilter_domains,MIHOMO
   - RULE-SET,refilter_ipsum,MIHOMO
   - MATCH,DIRECT # это самая нижная строка правил, ниже ее ничего не должно быть
+  # ссылка на русскоязычную документацию по правилам маршрутизации: 
+  # https://wiki.metacubex.one/ru/config/
