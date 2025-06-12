@@ -53,8 +53,7 @@ proxy-providers:
 proxy-groups:
   - name: MIHOMO
     type: select
-    use:
-      - sub
+    include-all: true
 
 # --- ПОДПИСКИ НА ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rule-providers:
