@@ -40,6 +40,13 @@ proxy-groups:
     type: select
     include-all: true
 
+  - name: Telegram
+    type: select
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram.png
+    include-all: true
+    proxies:
+      - DIRECT
+
 # --- ПОДПИСКИ НА ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rule-providers:
   telegram-domain:
@@ -130,8 +137,7 @@ rule-providers:
 # --- ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rules:
   - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),MIHOMO
-  - RULE-SET,telegram-domain,MIHOMO
-  - RULE-SET,telegram-ips,MIHOMO
+  - OR,((RULE-SET,telegram-domain),(RULE-SET,telegram-ips)),Telegram
   - RULE-SET,cloudflare-domains,MIHOMO
   - RULE-SET,cloudflare-ips,MIHOMO
   - RULE-SET,oisd_big,REJECT # OISD Big - блокирует рекламу
