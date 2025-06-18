@@ -43,32 +43,85 @@ proxy-groups:
   - name: Telegram
     type: select
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram.png
-    proxies:
-      - VPN
-      - DIRECT
-      
-  - name: Cloudflare
-    type: select
-    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Cloudflare.png
+    # include-all: true
     proxies:
       - VPN
       - DIRECT
 
+  - name: WhatsApp
+    type: select
+    icon: https://github.com/OMchik33/Whatsapp-icon/blob/master/icons/whatsapp_194x194.png?raw=true
+    # include-all: true
+    proxies:
+      - VPN
+      - DIRECT
+
+  - name: Cloudflare
+    type: select
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Cloudflare.png
+    # include-all: true
+    proxies:
+      - VPN
+      - DIRECT
+
+  - name: Steam
+    type: select
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Steam.png
+    include-all: true
+    proxies:
+      - DIRECT
+  
+  - name: YouTube
+    type: select
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png
+    # include-all: true
+    proxies:
+      - VPN
+      - DIRECT
+  
 # --- ПОДПИСКИ НА ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rule-providers:
   telegram-domain:
     type: http
     behavior: domain
-    format: yaml
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/refs/heads/meta/geo/geosite/telegram.yaml
-    path: ./rule-sets/telegram-domain.yaml
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/telegram.mrs
+    path: ./rule-sets/telegram-domain.mrs
     interval: 86400
   telegram-ips:
     type: http
     behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/telegram.mrs
+    path: ./rule-sets/telegram-ips.mrs
+    interval: 86400
+  whatsapp-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/whatsapp.mrs
+    path: ./rule-sets/whatsapp-domain.mrs
+    interval: 86400
+  steam-domain:
+    type: http
+    behavior: domain
     format: yaml
-    url: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/refs/heads/meta/geo/geoip/telegram.yaml
-    path: ./rule-sets/telegram-ips.yaml
+    url: https://raw.githubusercontent.com/OMchik33/custom-rules/refs/heads/main/mihomo/gaming-domains.yaml
+    path: ./rule-sets/steam-domain.yaml
+    interval: 86400
+  steam-ips:
+    type: http
+    behavior: ipcidr
+    format: yaml
+    url: https://raw.githubusercontent.com/OMchik33/custom-rules/refs/heads/main/mihomo/gaming-ips.yaml
+    path: ./rule-sets/steam-ips.yaml
+    interval: 86400    
+  newfix:
+    type: http
+    behavior: domain
+    format: yaml
+    url: https://raw.githubusercontent.com/OMchik33/custom-rules/refs/heads/main/mihomo/newfix.yaml
+    path: ./rule-sets/newfix.yaml
     interval: 86400
   cloudflare-domains:
     type: http
@@ -112,6 +165,13 @@ rule-providers:
     url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/re-filter/ip-rule.mrs
     path: ./re-filter/ip-rule.mrs
     interval: 86400
+  youtube:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/youtube.mrs
+    path: ./rule-sets/youtube.mrs
+    interval: 86400
   oisd_big:
     type: http
     behavior: domain
@@ -143,12 +203,16 @@ rule-providers:
 
 # --- ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rules:
-  - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),VPN
-  - OR,((RULE-SET,telegram-domain),(RULE-SET,telegram-ips)),Telegram
-  - OR,((RULE-SET,cloudflare-domains),(RULE-SET,cloudflare-ips)),Cloudflare
-  - RULE-SET,oisd_big,REJECT # OISD Big - блокирует рекламу
   # - DOMAIN-SUFFIX,google.com,VPN # пример правила для домена google.com и всех поддоменов
   # - IP-CIDR,176.222.191.0/24,VPN,no-resolve # пример правила для IP подсети
+  - RULE-SET,newfix,VPN
+  - OR,((RULE-SET,telegram-domain),(RULE-SET,telegram-ips)),Telegram
+  - OR,((RULE-SET,cloudflare-domains),(RULE-SET,cloudflare-ips)),Cloudflare
+  - OR,((RULE-SET,steam-domain),(RULE-SET,steam-ips)),Steam
+  - OR,((RULE-SET,whatsapp-domain)),WhatsApp
+  - RULE-SET,youtube,VPN
+  - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),VPN
+  - RULE-SET,oisd_big,REJECT
   - OR,((RULE-SET,torrent-clients),(RULE-SET,torrent-trackers)),DIRECT
   - OR,((RULE-SET,discord_domains),(RULE-SET,discord_voiceips)),VPN
   - RULE-SET,ru-bundle,VPN
@@ -157,3 +221,4 @@ rules:
   - MATCH,DIRECT # это самая нижная строка правил, ниже ее ничего не должно быть
   # ссылка на русскоязычную документацию по правилам маршрутизации: 
   # https://wiki.metacubex.one/ru/config/
+  
