@@ -36,15 +36,22 @@ proxy-providers:
 
 # --- ГРУППЫ ПРОКСИ (ПОЛИТИКИ) ---
 proxy-groups:
-  - name: MIHOMO
+  - name: VPN
     type: select
     include-all: true
-
+    
   - name: Telegram
     type: select
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram.png
-    include-all: true
     proxies:
+      - VPN
+      - DIRECT
+      
+  - name: Cloudflare
+    type: select
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Cloudflare.png
+    proxies:
+      - VPN
       - DIRECT
 
 # --- ПОДПИСКИ НА ПРАВИЛА МАРШРУТИЗАЦИИ ---
@@ -136,18 +143,18 @@ rule-providers:
 
 # --- ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rules:
-  - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),MIHOMO
+  - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),VPN
   - OR,((RULE-SET,telegram-domain),(RULE-SET,telegram-ips)),Telegram
-  - RULE-SET,cloudflare-domains,MIHOMO
-  - RULE-SET,cloudflare-ips,MIHOMO
+  - RULE-SET,cloudflare-domains,VPN
+  - RULE-SET,cloudflare-ips,VPN
   - RULE-SET,oisd_big,REJECT # OISD Big - блокирует рекламу
-  # - DOMAIN-SUFFIX,google.com,MIHOMO # пример правила для домена google.com и всех поддоменов
-  # - IP-CIDR,176.222.191.0/24,MIHOMO,no-resolve # пример правила для IP подсети
+  # - DOMAIN-SUFFIX,google.com,VPN # пример правила для домена google.com и всех поддоменов
+  # - IP-CIDR,176.222.191.0/24,VPN,no-resolve # пример правила для IP подсети
   - OR,((RULE-SET,torrent-clients),(RULE-SET,torrent-trackers)),DIRECT
-  - OR,((RULE-SET,discord_domains),(RULE-SET,discord_voiceips)),MIHOMO
-  - RULE-SET,ru-bundle,MIHOMO
-  - RULE-SET,refilter_domains,MIHOMO
-  - RULE-SET,refilter_ipsum,MIHOMO
+  - OR,((RULE-SET,discord_domains),(RULE-SET,discord_voiceips)),VPN
+  - RULE-SET,ru-bundle,VPN
+  - RULE-SET,refilter_domains,VPN
+  - RULE-SET,refilter_ipsum,VPN
   - MATCH,DIRECT # это самая нижная строка правил, ниже ее ничего не должно быть
   # ссылка на русскоязычную документацию по правилам маршрутизации: 
   # https://wiki.metacubex.one/ru/config/
