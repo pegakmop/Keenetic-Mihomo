@@ -39,12 +39,15 @@ proxy-providers:
 proxy-groups:
   - name: VPN
     type: select
+    remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
+      include-proxies: false
     include-all: true
-    
+
   - name: Telegram
     type: select
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram.png
-    # include-all: true
+    remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
+      include-proxies: false
     proxies:
       - VPN
       - DIRECT
@@ -52,7 +55,8 @@ proxy-groups:
   - name: WhatsApp
     type: select
     icon: https://github.com/OMchik33/Whatsapp-icon/blob/master/icons/whatsapp_194x194.png?raw=true
-    # include-all: true
+    remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
+      include-proxies: false
     proxies:
       - VPN
       - DIRECT
@@ -60,7 +64,8 @@ proxy-groups:
   - name: Cloudflare
     type: select
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Cloudflare.png
-    # include-all: true
+    remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
+      include-proxies: false
     proxies:
       - VPN
       - DIRECT
@@ -68,14 +73,18 @@ proxy-groups:
   - name: Steam
     type: select
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Steam.png
+    remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
+      include-proxies: false
     include-all: true
     proxies:
       - DIRECT
-  
+      - VPN
+
   - name: YouTube
     type: select
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png
-    # include-all: true
+    remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
+      include-proxies: false
     proxies:
       - VPN
       - DIRECT
