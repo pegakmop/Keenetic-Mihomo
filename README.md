@@ -25,7 +25,7 @@
 
 ## Установка конфига
 
-* Скачайте базовый конфигурационный файл:
+Скачайте базовый конфигурационный файл:
 
 ```bash
 curl -L -o /opt/etc/mihomo/config.yaml https://raw.githubusercontent.com/OMchik33/Keenetic-Mihomo/refs/heads/main/config.yaml
