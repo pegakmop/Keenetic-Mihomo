@@ -64,11 +64,11 @@ proxy-groups:
   - name: Cloudflare
     type: select
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Cloudflare.png
-    remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
+    remnawave:
       include-proxies: false
     proxies:
-      - VPN
       - DIRECT
+      - VPN
 
   - name: Steam
     type: select
@@ -217,7 +217,6 @@ rules:
   # - IP-CIDR,176.222.191.0/24,VPN,no-resolve # пример правила для IP подсети
   - RULE-SET,newfix,VPN
   - OR,((RULE-SET,telegram-domain),(RULE-SET,telegram-ips)),Telegram
-  - OR,((RULE-SET,cloudflare-domains),(RULE-SET,cloudflare-ips)),Cloudflare
   - OR,((RULE-SET,steam-domain),(RULE-SET,steam-ips)),Steam
   - OR,((RULE-SET,whatsapp-domain)),WhatsApp
   - RULE-SET,youtube,VPN
@@ -228,7 +227,7 @@ rules:
   - RULE-SET,ru-bundle,VPN
   - RULE-SET,refilter_domains,VPN
   - RULE-SET,refilter_ipsum,VPN
+  - OR,((RULE-SET,cloudflare-domains),(RULE-SET,cloudflare-ips)),Cloudflare
   - MATCH,DIRECT # это самая нижная строка правил, ниже ее ничего не должно быть
   # ссылка на русскоязычную документацию по правилам маршрутизации: 
   # https://wiki.metacubex.one/ru/config/
-  
