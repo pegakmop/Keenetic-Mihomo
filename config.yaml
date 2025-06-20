@@ -16,6 +16,25 @@ sniffer:
     TLS:
     QUIC:
 
+dns:
+  enable: true
+  prefer-h3: true
+  use-hosts: true
+  use-system-hosts: true
+  listen: 127.0.0.1:53
+  ipv6: false
+  enhanced-mode: redir-host
+  default-nameserver:
+    - tls://1.1.1.1
+    - tls://1.0.0.1
+  proxy-server-nameserver:
+    - tls://1.1.1.1
+    - tls://1.0.0.1
+  direct-nameserver:
+    - tls://77.88.8.8
+  nameserver:
+    - https://cloudflare-dns.com/dns-query#PROXY
+
 # --- ВАШИ ПРОКСИ-СЕРВЕРЫ ---
 proxy-providers:
   sub:
