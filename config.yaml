@@ -238,7 +238,7 @@ rules:
   - OR,((RULE-SET,telegram-domain),(RULE-SET,telegram-ips)),Telegram
   - OR,((RULE-SET,steam-domain),(RULE-SET,steam-ips)),Steam
   - OR,((RULE-SET,whatsapp-domain)),WhatsApp
-  - RULE-SET,youtube,VPN
+  - RULE-SET,youtube,YouTube
   - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),VPN
   - RULE-SET,oisd_big,REJECT
   - OR,((RULE-SET,torrent-clients),(RULE-SET,torrent-trackers)),DIRECT
