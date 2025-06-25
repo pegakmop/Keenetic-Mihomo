@@ -107,9 +107,25 @@ proxy-groups:
     proxies:
       - VPN
       - DIRECT
+
+  - name: Twitch
+    type: select
+    icon: https://img.icons8.com/3d-fluency/94/twitch.png
+    remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
+      include-proxies: false
+    proxies:
+      - DIRECT
+      - VPN
   
 # --- ПОДПИСКИ НА ПРАВИЛА МАРШРУТИЗАЦИИ ---
 rule-providers:
+  twitch-domain:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/twitch.mrs
+    path: ./rule-sets/twitch-domain.mrs
+    interval: 86400
   telegram-domain:
     type: http
     behavior: domain
@@ -239,6 +255,7 @@ rules:
   - OR,((RULE-SET,steam-domain),(RULE-SET,steam-ips)),Steam
   - OR,((RULE-SET,whatsapp-domain)),WhatsApp
   - RULE-SET,youtube,YouTube
+  - RULE-SET,twitch-domain,Twitch
   - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io)),VPN
   - RULE-SET,oisd_big,REJECT
   - OR,((RULE-SET,torrent-clients),(RULE-SET,torrent-trackers)),DIRECT
