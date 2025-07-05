@@ -117,9 +117,10 @@ proxy-groups:
     icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png
     remnawave: # Кастомное поле используемое только в Remnawave (отключает добавление всех прокси в данную секцию, кроме указанных вручную)
       include-proxies: false
+    include-all: true
     proxies:
-      - VPN
       - DIRECT
+      - VPN
 
   - name: Twitch
     type: select
