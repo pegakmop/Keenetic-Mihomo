@@ -7,6 +7,9 @@ external-controller: '0.0.0.0:9090' # адрес веб админки: http://1
 external-ui: ui
 external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip"
 
+profile:
+  store-selected: true
+
 sniffer:
   enable: true
   parse-pure-ip: true
