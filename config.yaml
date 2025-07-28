@@ -1,4 +1,5 @@
 tproxy-port: 4000
+socks-port: 7890 # SOCKS5 proxy port (если нужен прямой доступ к SOCKS5 прокси)
 allow-lan: true
 mode: rule
 log-level: silent
