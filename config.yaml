@@ -29,22 +29,10 @@ dns:
   ipv6: false
   enhanced-mode: redir-host
   default-nameserver:
-    - tls://1.1.1.1
-    - tls://1.0.0.1
-    - tls://8.8.8.8
-    - tls://8.8.4.4
     - tls://9.9.9.9
-    - https://8.8.8.8/dns-query
-    - https://1.1.1.1/dns-query
     - https://9.9.9.9/dns-query
   proxy-server-nameserver:
-    - tls://1.1.1.1
-    - tls://1.0.0.1
-    - tls://8.8.8.8
-    - tls://8.8.4.4
     - tls://9.9.9.9
-    - https://8.8.8.8/dns-query
-    - https://cloudflare-dns.com/dns-query
     - https://9.9.9.9/dns-query
   direct-nameserver:
     - tls://77.88.8.8#DIRECT
@@ -56,7 +44,7 @@ dns:
 proxy-providers:
   sub:
     type: http
-    url: https://ссылкаподписки # Замените на свою ссылку подписки на прокси (ВПН)
+    url: https://тутвашассылканаподпискуклешилимихомо # Замените на свою ссылку подписки на прокси (ВПН)
     path: ./proxy_providers/base64.yaml
     interval: 3600
     health-check:
