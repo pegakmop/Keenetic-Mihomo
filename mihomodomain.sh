@@ -1,30 +1,42 @@
 #!/bin/sh
-set -e
 
-# В CLI роутера: http://192.168.1.1/a
-#ip http ssl port 8443
-#system configuration save
-#entware next list commands 
-ndmc -c "ip http ssl port 8443"
-ndmc -c "system configuration save"
-ndmc -c "no ip policy mihomo"
-ndmc -c "ip policy mihomo"
-ndmc -c "system configuration save"
-ndmc -c "no interface Proxy0"
-ndmc -c "interface Proxy0"
-ndmc -c "interface Proxy0 description mihomo-Proxy0-192.168.1.1:7890"
-ndmc -c "interface Proxy0 proxy protocol socks5"
-ndmc -c "interface Proxy0 proxy socks5-udp"
-ndmc -c "interface Proxy0 proxy upstream 192.168.1.1 7890"
-ndmc -c "interface Proxy0 up"
-ndmc -c "interface Proxy0 ip global 1"
-ndmc -c "system configuration save"
-
-echo ">>> Проверка среды..."
+echo ">>> Проверка среды Entware/OpenWRT..."
 if ! command -v opkg >/dev/null 2>&1; then
   echo "❌ Команда 'opkg' не найдена. Убедитесь, что вы используете Entware/OpenWRT-среду."
   exit 1
 fi
+
+set -e
+
+ip_address_router=$(ip addr show br0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
+
+if ndmc -c "components list" | grep -A15 "name: proxy" | grep "installed:"; then
+    echo "✅ Компонент клиент прокси установлен на роутере"
+    echo "⏳ Устанавливаю Proxy0 и политику mihomo..."
+    ndmc -c "no interface Proxy0" >/dev/null 2>&1
+    ndmc -c "interface Proxy0"
+    ndmc -c "interface Proxy0 description Proxy0-$ip_address_router:7890"
+    ndmc -c "interface Proxy0 proxy protocol socks5"
+    ndmc -c "interface Proxy0 proxy socks5-udp"
+    ndmc -c "interface Proxy0 proxy upstream $ip_address_router 7890"
+    ndmc -c "interface Proxy0 up"
+    ndmc -c "interface Proxy0 ip global 1"
+    ndmc -c "no ip policy mihomo"
+    ndmc -c "ip policy mihomo"
+    ndmc -c "ip http ssl port 8443"
+    ndmc -c "system configuration save"
+    echo "✅ Proxy0, политика mihomo созданы и сохранены, SSL порт веб интерфейса успешно перенесен с 443 на 8443!"
+else
+    echo "❌ Компонент КЛИЕНТ ПРОКСИ не установлен!"
+    echo "➡️ В веб-интерфейсе Keenetic:"
+    echo "Параметры системы → Изменить набор компонентов → Клиент прокси → включите галочку и сохраните."
+    echo "Роутер перезагрузится после сохранения для установки компонента клиент прокси"
+    exit 1
+fi
+
+# В CLI роутера: http://192.168.1.1/a
+#ip http ssl port 8443
+#system configuration save
 
 rm -rf /opt/etc/mihomo/
 echo ">>> [1/7] Определение архитектуры..."
@@ -57,7 +69,7 @@ if ! curl -Is https://github.com | head -n 1 | grep -q "200\|301"; then
   exit 1
 fi
 
-echo ">>> [3/7] Загрузка последней версии Mihomo..."
+echo ">>> [3/7] Проверка последней версии Mihomo..."
 LATEST_VERSION=$(curl -s https://github.com/MetaCubeX/mihomo/releases | grep -Eo "/MetaCubeX/mihomo/releases/tag/v[0-9.]+" | head -n 1 | cut -d '/' -f6)
 echo ">>> Последняя версия: $LATEST_VERSION"
 
@@ -159,7 +171,6 @@ else
 fi
 
 # === Финал ===
-ip_address_router=$(ip addr show br0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
 
 echo "⚠️На данный момент проверена установка только на архитектуре aarch64 за остальным еще нужно проверять"
 echo "✅ Установка Mihomo завершена!"
