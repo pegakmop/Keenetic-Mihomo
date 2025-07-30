@@ -7,7 +7,9 @@ set -e
 #entware next list commands 
 ndmc -c "ip http ssl port 8443"
 ndmc -c "system configuration save"
-
+ndmc -c "no ip policy mihomo"
+ndmc -c "ip policy mihomo"
+ndmc -c "system configuration save"
 
 echo ">>> Проверка среды..."
 if ! command -v opkg >/dev/null 2>&1; then
@@ -152,6 +154,7 @@ ip_address_router=$(ip addr show br0 2>/dev/null | awk '/inet / {print $2}' | cu
 
 echo "⚠️На данный момент проверена установка только на архитектуре aarch64 за остальным еще нужно проверять"
 echo "✅ Установка Mihomo завершена!"
+echo "⚠️ Выберите только провайдера в приоритетах подключений в политике mihomo и сохраните, а так же закиньте нужное устройство в политику mihomo"
 echo "▶️ Запуск: mihomo restart"
 echo "📝 Конфиг: /opt/etc/mihomo/config.yaml"
 echo "🌐 UI-доступ: http://$ip_address_router:9090/ui"
