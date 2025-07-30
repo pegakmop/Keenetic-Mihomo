@@ -1,24 +1,33 @@
 #!/bin/sh
 set -e
 
+if ndmc -c "components list" | grep -A15 "name: proxy" | grep "installed:"; then
+    echo "✅ Компонент клиент прокси установлен"
+    echo "⏳ Устанавливаю Proxy0 и политику mihomo..."
+    ndmc -c "no interface Proxy0" >/dev/null 2>&1
+    ndmc -c "interface Proxy0"
+    ndmc -c "interface Proxy0 description Proxy0-192.168.1.1:1080"
+    ndmc -c "interface Proxy0 proxy protocol socks5"
+    ndmc -c "interface Proxy0 proxy socks5-udp"
+    ndmc -c "interface Proxy0 proxy upstream 192.168.1.1 1080"
+    ndmc -c "interface Proxy0 up"
+    ndmc -c "interface Proxy0 ip global 1"
+    ndmc -c "no ip policy mihomo"
+    ndmc -c "ip policy mihomo"
+    ndmc -c "ip http ssl port 8443"
+    ndmc -c "system configuration save"
+    echo "✅ Proxy0, политика mihomo и SSL порт успешно созданы и сохранены!"
+else
+    echo "❌ Компонент КЛИЕНТ ПРОКСИ не установлен!"
+    echo "➡️ В веб-интерфейсе Keenetic:"
+    echo "Параметры системы → Изменить набор компонентов → Клиент прокси → включите галочку и сохраните."
+    echo "Роутер перезагрузится после сохранения для установки компонента клиент прокси"
+    exit 1
+fi
+
 # В CLI роутера: http://192.168.1.1/a
 #ip http ssl port 8443
 #system configuration save
-#entware next list commands 
-ndmc -c "ip http ssl port 8443"
-ndmc -c "system configuration save"
-ndmc -c "no ip policy mihomo"
-ndmc -c "ip policy mihomo"
-ndmc -c "system configuration save"
-ndmc -c "no interface Proxy0"
-ndmc -c "interface Proxy0"
-ndmc -c "interface Proxy0 description mihomo-Proxy0-192.168.1.1:7890"
-ndmc -c "interface Proxy0 proxy protocol socks5"
-ndmc -c "interface Proxy0 proxy socks5-udp"
-ndmc -c "interface Proxy0 proxy upstream 192.168.1.1 7890"
-ndmc -c "interface Proxy0 up"
-ndmc -c "interface Proxy0 ip global 1"
-ndmc -c "system configuration save"
 
 echo ">>> Проверка среды..."
 if ! command -v opkg >/dev/null 2>&1; then
