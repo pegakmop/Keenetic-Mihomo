@@ -1,6 +1,6 @@
 <blockquote>
 <strong>⚠️ Внимание:</strong> скрипт не отлажен и работает нестабильно.<br>
-Развитие данного скрипта приостановлено в пользу полностью рабочей версии в форке ([XKeen от jameszeroX](https://github.com/jameszeroX/XKeen))
+Развитие данного скрипта приостановлено в пользу полностью рабочей версии в форке XKeen от jameszeroX (https://github.com/jameszeroX/XKeen)
 </blockquote>
 
 # Установка и настройка Mihomo на Keenetic
