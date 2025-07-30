@@ -6,7 +6,7 @@ if ! command -v opkg >/dev/null 2>&1; then
   exit 1
 fi
 
-set -e
+
 
 ip_address_router=$(ip addr show br0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1)
 
@@ -33,6 +33,8 @@ else
     echo "Роутер перезагрузится после сохранения для установки компонента клиент прокси"
     exit 1
 fi
+
+set -e
 
 # В CLI роутера: http://192.168.1.1/a
 #ip http ssl port 8443
