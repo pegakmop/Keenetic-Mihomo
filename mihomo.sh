@@ -158,3 +158,4 @@ echo "⚠️ Выберите только провайдера в приори�
 echo "▶️ Запуск: mihomo restart"
 echo "📝 Конфиг: /opt/etc/mihomo/config.yaml"
 echo "🌐 UI-доступ: http://$ip_address_router:9090/ui"
+rm "$0"
