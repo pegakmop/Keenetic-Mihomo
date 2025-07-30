@@ -109,7 +109,7 @@ elif [ "$choice" = "2" ]; then
     https://raw.githubusercontent.com/pegakmop/Keenetic-Mihomo/refs/heads/main/configdomain.yaml
     echo "Скачан configdomain.yaml"
 else
-    echo "Неверный выбор! Скрипт завершен."
+    echo "Неверный выбор. Перезапустите скрипт и выберите 1 или 2."
     exit 1
 fi
 
