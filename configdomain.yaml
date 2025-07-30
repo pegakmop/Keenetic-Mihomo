@@ -194,6 +194,7 @@ rule-providers:
     type: inline
     payload:
       - DOMAIN-SUFFIX,habr.com
+      - DOMAIN-KEYWORD,4pda
       - DOMAIN-SUFFIX,kemono.su
       - DOMAIN-SUFFIX,jut.su
       - DOMAIN-SUFFIX,kara.su
