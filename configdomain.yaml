@@ -1,0 +1,470 @@
+mixed-port: 7897
+socks-port: 7890 # SOCKS5 proxy port (если нужен прямой доступ к SOCKS5 прокси)
+tproxy-port: 4000
+allow-lan: true
+mode: rule
+log-level: silent
+find-process-mode: off
+ipv6: false
+tcp-concurrent: true # несколько TCP соединений
+keep-alive-interval: 30
+profile:
+  store-selected: true
+external-controller: '0.0.0.0:9090' # адрес веб админки: http://192.168.1.1:9090/ui
+external-ui: ui
+external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip"
+
+sniffer:
+  enable: true
+  parse-pure-ip: true
+  force-dns-mapping: true
+  sniff:
+    HTTP:
+      ports: [80]
+    TLS:
+      ports: [443]
+    QUIC:
+      ports: [443]
+dns:
+  enable: true
+  cache-algorithm: arc
+  rebind-protection:
+    enabled: true
+  prefer-h3: true
+  use-hosts: false
+  use-system-hosts: false
+  listen: 0.0.0.0:53
+  ipv6: false
+  strict-mode: false # перебирать DNS
+  enhanced-mode: redir-host
+  default-nameserver:
+  - 1.1.1.1 # Cloudflare Public DNS (UDP/TCP)
+  - 1.0.0.1 # Cloudflare Public DNS (UDP/TCP)
+  - 8.8.8.8 # Google Public DNS (UDP/TCP)
+  - 9.9.9.9 # Quad9 Public DNS (UDP/TCP)
+  proxy-server-nameserver:
+    - https://cloudflare-dns.com/dns-query
+    - tls://1.1.1.1
+    - tls://1.0.0.1
+    - tls://8.8.8.8
+    - tls://8.8.4.4
+    - tls://9.9.9.9
+    - https://8.8.8.8/dns-query
+    - https://9.9.9.9/dns-query
+  direct-nameserver:
+  - 77.88.8.8 # Яндекс.DNS (UDP/TCP) - основной
+  - 213.180.204.213 # Яндекс.DNS (UDP/TCP) - резервный
+  nameserver:
+  - https://cloudflare-dns.com/dns-query#PROXY
+  - tls://dns.cloudflare.com # DoT Cloudflare
+  - https://dns.google/dns-query # DoH Google
+  nameserver-policy:
+    rule-set:tmdb: 9.9.9.9
+    rule-set:youtube:
+    - 1.1.1.1
+    - 1.0.0.1
+    rule-set:ru-bundle:
+    - https://cloudflare-dns.com/dns-query
+    - tls://dns.cloudflare.com
+    - https://dns.google/dns-query # DoH Google
+    +.ru:
+    - 77.88.8.8
+    - 213.180.204.213
+    +.su:
+    - 77.88.8.8
+    - 213.180.204.213
+    +.by:
+    - 77.88.8.8
+    - 213.180.204.213
+    rule-set:geosite-ru:
+    - 77.88.8.8
+    - 213.180.204.213
+    DIRECT:
+    - direct-nameserver
+    MATCH:
+    - proxy-server-nameserver
+
+# Пример подключения с использованием подписки
+# --- ВАШИ ПРОКСИ-СЕРВЕРЫ ---
+proxy-providers:
+  proxy_sub:
+    type: http
+    url: https://тутвашассылканаподпискуклешилимихомо # Замените на свою ссылку подписки на прокси (ВПН)
+    path: ./proxy-providers/proxy_sub.yml
+    interval: 43200
+    explicit: true
+    health-check:
+      enable: true
+      url: http://cp.cloudflare.com/
+      interval: 300
+      timeout: 2000
+      lazy: false
+      expected-status: 204
+    override:
+      udp: true
+      tfo: true
+
+proxy-groups:
+  - name: 🌍 VPN без RU
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Hijacking.png
+    type: select
+    proxies:
+      - ⚡️ Самый быстрый
+      - 📶 Первый доступный
+      - 🔓 Без VPN
+    include-all: true
+  - name: ▶️ YouTube
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png
+    type: select
+    exclude-filter: Нидерланды
+    proxies:
+      - ⚡️ Самый быстрый
+      - 📶 Первый доступный
+      - 🔓 Без VPN
+    include-all: true
+  - name: 📺 TikTok # Используется для проксирования только Tiktok,  по умолчанию подключается к серверу с наименьшим пингом
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/TikTok_1.png
+    type: select
+    proxies:
+      - ⚡️ Самый быстрый
+      - 📶 Первый доступный
+      - 🔓 Без VPN
+    include-all: true
+  - name: 🤖 OPENAI
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/ChatGPT.png
+    type: select
+    proxies:
+      - ⚡️ Самый быстрый
+      - 📶 Первый доступный
+    include-all: true
+  - name: 🏠 RU сайты
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Russia.png
+    type: select
+    proxies:
+      - 🔓 Без VPN
+      - ⚡️ Самый быстрый
+    include-all: true
+  - name: 🏳️ Other sites
+    hidden: false
+    type: select
+    proxies:
+      - 🏠 RU сайты
+      - 🌍 VPN без RU
+  - name: PROXY
+    type: select
+    hidden: true
+    proxies:
+      - 🌍 VPN без RU
+    include-all: true
+  - name: 🔓 Без VPN
+    type: select
+    hidden: true
+    proxies:
+      - DIRECT
+  - name: ⚡️ Самый быстрый
+    hidden: true
+    type: url-test
+    tolerance: 150
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    proxies:
+    exclude-filter: "WARP"
+    include-all: true
+  - name: 📶 Первый доступный
+    hidden: true
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Download.png
+    type: fallback
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    proxies:
+    exclude-filter: "WARP"
+    include-all: true
+  - name: ☁️ Cloudflare
+    type: select
+    icon: https://cdn.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Cloudflare.png
+    hidden: false
+    proxies:
+      - ⚡️ Самый быстрый
+      - 📶 Первый доступный
+      - 🔓 Без VPN
+    include-all: true
+
+rule-providers:
+  ru-inline-banned:
+    type: inline
+    payload:
+      - DOMAIN-SUFFIX,habr.com
+      - DOMAIN-SUFFIX,kemono.su
+      - DOMAIN-SUFFIX,jut.su
+      - DOMAIN-SUFFIX,kara.su
+      - DOMAIN-SUFFIX,theins.ru
+      - DOMAIN-SUFFIX,tvrain.ru
+      - DOMAIN-SUFFIX,echo.msk.ru
+      - DOMAIN-SUFFIX,the-village.ru
+      - DOMAIN-SUFFIX,snob.ru
+      - DOMAIN-SUFFIX,novayagazeta.ru
+      - DOMAIN-SUFFIX,moscowtimes.ru
+      - DOMAIN-KEYWORD,animego
+      - DOMAIN-KEYWORD,yummyanime
+      - DOMAIN-KEYWORD,yummy-anime
+      - DOMAIN-KEYWORD,animeportal
+      - DOMAIN-KEYWORD,anime-portal
+      - DOMAIN-KEYWORD,animedub
+      - DOMAIN-KEYWORD,anidub
+      - DOMAIN-KEYWORD,animelib
+      - DOMAIN-KEYWORD,ikianime
+      - DOMAIN-KEYWORD,anilibria
+    behavior: classical
+  ru-inline:
+    type: inline
+    payload:
+      - DOMAIN-SUFFIX,2ip.ru
+      - DOMAIN-SUFFIX,yastatic.net
+      - DOMAIN-SUFFIX,yandex.net
+      - DOMAIN-SUFFIX,yandex.kz
+      - DOMAIN-SUFFIX,yandex.com
+      - DOMAIN-SUFFIX,mycdn.me
+      - DOMAIN-SUFFIX,vk.com
+      - DOMAIN-SUFFIX,.ru
+      - DOMAIN-SUFFIX,.su
+      - DOMAIN-SUFFIX,.by
+      - DOMAIN-SUFFIX,.ru.com
+      - DOMAIN-SUFFIX,.ru.net
+      - DOMAIN-SUFFIX,kudago.com
+      - DOMAIN-SUFFIX,kinescope.io
+      - DOMAIN-SUFFIX,redheadsound.studio
+      - DOMAIN-SUFFIX,plplayer.online
+      - DOMAIN-SUFFIX,lomont.site
+      - DOMAIN-SUFFIX,remanga.org
+      - DOMAIN-SUFFIX,shopstory.live
+      - DOMAIN-SUFFIX,smallpdf.com
+      - DOMAIN-KEYWORD,miradres
+      - DOMAIN-KEYWORD,premier
+      - DOMAIN-KEYWORD,shutterstock
+      - DOMAIN-KEYWORD,2gis
+      - DOMAIN-KEYWORD,diginetica
+      - DOMAIN-KEYWORD,kinescopecdn
+      - DOMAIN-KEYWORD,researchgate
+      - DOMAIN-KEYWORD,springer
+      - DOMAIN-KEYWORD,nextcloud
+      - DOMAIN-KEYWORD,kaspersky
+      - DOMAIN-KEYWORD,stepik
+      - DOMAIN-KEYWORD,likee
+      - DOMAIN-KEYWORD,snapchat
+      - DOMAIN-KEYWORD,yappy
+      - DOMAIN-KEYWORD,pikabu
+      - DOMAIN-KEYWORD,okko
+      - DOMAIN-KEYWORD,wink
+      - DOMAIN-KEYWORD,kion
+      - DOMAIN-KEYWORD,roblox
+      - DOMAIN-KEYWORD,ozon
+      - DOMAIN-KEYWORD,wildberries
+      - DOMAIN-KEYWORD,aliexpress
+    behavior: classical
+  geosite-ru:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/category-ru.mrs
+    path: ./provider/rule-set/geosite-ru.mrs
+    interval: 604800
+  drweb:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/drweb.mrs
+    path: ./provider/rule-set/drweb.mrs
+    interval: 604800
+  geoip-ru:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geoip/ru.mrs
+    path: ./provider/rule-set/geoip-ru.mrs
+    interval: 604800
+  geoip-by:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geoip/by.mrs
+    path: ./provider/rule-set/geoip-by.mrs
+    interval: 604800
+  geosite-private:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/private.mrs
+    path: ./provider/rule-set/geosite-private.mrs
+    interval: 604800
+  geoip-private:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geoip/private.mrs
+    path: ./provider/rule-set/geoip-private.mrs
+    interval: 604800
+  discord_domains:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/discord.mrs
+    path: ./provider/rule-set/discord_domains.mrs
+    interval: 604800
+  discord_vc:
+    type: inline
+    payload:
+      - AND,((IP-CIDR,138.128.136.0/21),(NETWORK,udp),(DST-PORT,50000-51000))
+      - AND,((IP-CIDR,162.158.0.0/15),(NETWORK,udp),(DST-PORT,50000-51000))
+      - AND,((IP-CIDR,172.64.0.0/13),(NETWORK,udp),(DST-PORT,50000-51000))
+      - AND,((IP-CIDR,34.0.0.0/15),(NETWORK,udp),(DST-PORT,50000-51000))
+      - AND,((IP-CIDR,34.2.0.0/15),(NETWORK,udp),(DST-PORT,50000-51000))
+      - AND,((IP-CIDR,35.192.0.0/12),(NETWORK,udp),(DST-PORT,50000-51000))
+      - AND,((IP-CIDR,35.208.0.0/12),(NETWORK,udp),(DST-PORT,50000-51000))
+      - AND,((IP-CIDR,5.200.14.128/25),(NETWORK,udp),(DST-PORT,50000-51000))
+      - AND,((IP-CIDR,66.22.192.0/18),(NETWORK,udp),(DST-PORT,50000-51000))
+    behavior: classical
+  refilter_domains:
+    type: inline
+    behavior: domain
+    format: mrs
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/re-filter/domain-rule.mrs
+    path: ./provider/rule-set/domain-rule.mrs
+    interval: 604800
+  refilter_ipsum:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/re-filter/ip-rule.mrs
+    path: ./provider/rule-set/ip-rule.mrs
+    interval: 604800
+  youtube:
+    type: http
+    behavior: domain
+    format: mrs
+    interval: 604800
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/youtube.mrs
+    path: ./provider/rule-set/youtube.mrs
+  oisd_big:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/oisd/big.mrs
+    path: ./provider/rule-set/oisd/big.mrs
+    interval: 604800
+  torrent-trackers:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/other/torrent-trackers.mrs
+    path: ./provider/rule-set/torrent-trackers.mrs
+    interval: 604800
+  torrent-clients:
+    type: http
+    behavior: classical
+    format: yaml
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/other/torrent-clients.yaml
+    path: ./provider/rule-set/torrent-clients.yaml
+    interval: 604800
+  ru-bundle:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/legiz-ru/mihomo-rule-sets/raw/main/ru-bundle/rule.mrs
+    path: ./provider/rule-set/ru-bundle/rule.mrs
+    interval: 604800
+  full-vpn:
+    type: inline
+    behavior: classical
+    payload:
+      - NETWORK,tcp
+      - NETWORK,udp
+  openai:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/openai.mrs
+    path: ./provider/rule-set/openai.mrs
+    interval: 604800
+  gemini:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/google-gemini.mrs
+    path: ./provider/rule-set/gemini.mrs
+    interval: 604800
+  ai-bundle:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/category-ai-!cn.mrs
+    path: ./provider/rule-set/geo/geosite/category-ai-!cn.mrs
+    interval: 604800
+  cloudflare:
+    type: http
+    behavior: ipcidr
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geoip/cloudflare.mrs
+    path: ./provider/rule-set/cloudflare.mrs
+    interval: 604800
+  speedtest:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/speedtest.mrs
+    path: ./provider/rule-set/speedtest.mrs
+    interval: 604800
+  apple:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/apple.mrs
+    path: ./provider/rule-set/apple.mrs
+    interval: 604800
+  tiktok:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/tiktok.mrs
+    path: ./provider/rule-set/tiktok.mrs
+    interval: 604800
+  google:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/google.mrs
+    path: ./provider/rule-set/google.mrs
+    interval: 604800
+  tmdb:
+    type: http
+    behavior: domain
+    format: mrs
+    url: https://github.com/MetaCubeX/meta-rules-dat/raw/meta/geo/geosite/tmdb.mrs
+    path: ./provider/rule-set/tmdb.mrs
+    interval: 604800
+rules:
+  - RULE-SET,geosite-private,DIRECT,no-resolve
+  - RULE-SET,geoip-private,DIRECT
+#  - AND,((NETWORK,udp),(DST-PORT,443)),REJECT
+#  - AND,((NETWORK,udp),(DST-PORT,853)),REJECT
+  - RULE-SET,oisd_big,REJECT
+  - RULE-SET,speedtest,DIRECT
+  - OR,((RULE-SET,torrent-clients),(RULE-SET,torrent-trackers)),DIRECT
+  - OR,((DOMAIN,ipwho.is),(DOMAIN,api.ip.sb),(DOMAIN,ipapi.co),(DOMAIN,ipinfo.io),(DOMAIN-SUFFIX,2ip.io),(DOMAIN-SUFFIX,2ipcore.com)),🌍 VPN без RU
+  - OR,((RULE-SET,discord_domains),(RULE-SET,discord_vc)),🌍 VPN без RU
+  - RULE-SET,ru-inline,🏠 RU сайты
+  - RULE-SET,apple,🏠 RU сайты
+  - RULE-SET,youtube,▶️ YouTube
+  - RULE-SET,tiktok,📺 TikTok
+  - RULE-SET,ai-bundle,🤖 OPENAI
+  - RULE-SET,google,🏠 RU сайты
+  - RULE-SET,cloudflare,☁️ Cloudflare
+  - RULE-SET,ru-bundle,🌍 VPN без RU
+  - RULE-SET,refilter_domains,🌍 VPN без RU
+  - RULE-SET,refilter_ipsum,🌍 VPN без RU
+  - RULE-SET,ru-inline-banned,🌍 VPN без RU
+  - RULE-SET,geosite-ru,🏠 RU сайты
+  - RULE-SET,geoip-ru,🏠 RU сайты
+  - RULE-SET,geoip-by,🏠 RU сайты
+  - RULE-SET,drweb,🏠 RU сайты
+  - RULE-SET,full-vpn,🏳️ Other sites
+  - MATCH,🌍 VPN без RU
