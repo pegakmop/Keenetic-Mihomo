@@ -93,8 +93,26 @@ chmod +x /opt/etc/init.d/S99mihomo
 grep -q "alias mihomo=" ~/.profile || echo "alias mihomo='/opt/etc/init.d/S99mihomo'" >> ~/.profile
 . ~/.profile
 
+
 echo ">>> [7/7] Загрузка конфигурации по умолчанию..."
-curl -L -o /opt/etc/mihomo/config.yaml https://raw.githubusercontent.com/pegakmop/Keenetic-Mihomo/refs/heads/main/config.yaml
+echo "Выберите конфигурацию для скачивания:"
+echo "1 - config.yaml"
+echo "2 - configdomain.yaml"
+read -p "Введите 1 или 2: " choice
+
+if [ "$choice" = "1" ]; then
+    curl -L -o /opt/etc/mihomo/config.yaml \
+    https://raw.githubusercontent.com/pegakmop/Keenetic-Mihomo/refs/heads/main/config.yaml
+    echo "Скачан config.yaml"
+elif [ "$choice" = "2" ]; then
+    curl -L -o /opt/etc/mihomo/config.yaml \
+    https://raw.githubusercontent.com/pegakmop/Keenetic-Mihomo/refs/heads/main/configdomain.yaml
+    echo "Скачан configdomain.yaml"
+else
+    echo "Неверный выбор! Скрипт завершен."
+    exit 1
+fi
+
 
 # === Установка UI ===
 UI_DIR="/opt/etc/mihomo/ui/"
@@ -184,5 +202,6 @@ echo "♻️ Статус: mihomo status"
 echo "📝 Конфиг: /opt/etc/mihomo/config.yaml"
 echo "🌐 WebUI-доступ: http://$ip_address_router:9090/ui"
 
-#rm "$0"
+sleep 6
+rm "$0"
 
