@@ -39,17 +39,17 @@ set -e
 # В CLI роутера: http://192.168.1.1/a
 #ip http ssl port 8443
 #system configuration save
-
+echo "rm -rf /opt/etc/mihomo/"
 rm -rf /opt/etc/mihomo/
 echo ">>> [1/7] Определение архитектуры..."
-ARCH=$(uname -m)
+ARCH=$(opkg print-architecture | awk '/^arch/ && $2 !~ /_kn$/ && $2 ~ /-[0-9]+\.[0-9]+$/ {print $2; exit}')
+if [ -z "$ARCH" ]; then echo "Не удалось определить архитектуру."; exit 1; fi
+
 case "$ARCH" in
-  aarch64)  MIHOMO_ARCH="arm64" ;;
-  armv7l|armv7) MIHOMO_ARCH="armv7" ;;
-  mips)     MIHOMO_ARCH="mips" ;;
-  mipsel)   MIHOMO_ARCH="mipsle" ;;
-  x86_64)   MIHOMO_ARCH="amd64" ;;
-  *) echo "❌ Неизвестная архитектура: $ARCH"; exit 1 ;;
+  aarch64-3.10) MIHOMO_ARCH="arm64" ;;
+  mipsel-3.4)   MIHOMO_ARCH="mipsle" ;;
+  mips-3.4)     MIHOMO_ARCH="mips" ;;
+  *) echo "Неподдерживаемая архитектура: $ARCH"; exit 1 ;;
 esac
 echo ">>> Архитектура: $ARCH → $MIHOMO_ARCH"
 
