@@ -32,6 +32,7 @@ fi
 
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
+    logger "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
 wait_for_network() {
